@@ -1,0 +1,28 @@
+name: Teleports
+version: @version@
+main: com.varestorm.plugins.teleports.Application
+api-version: 1.16
+authors: [Rob_Varestorm]
+description: Teleport plugin
+website: varestorm.com
+commands:
+  spawn:
+    usage: /spawn
+  bed:
+    usage: /bed
+  anchor:
+    usage: /anchor
+  back:
+    usage: /back
+  home:
+    usage: /home
+  sethome:
+    usage: /sethome
+  tp:
+    usage: /tp
+    aliases: [teleport]
+    description: /tp [action] [name]
+  tpp:
+    usage: /tpp
+    aliases: [teleportplayer, tpa]
+    description: /tpp [action] [player]
