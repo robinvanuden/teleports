@@ -18,10 +18,10 @@ public class TeleportList {
     public static final int MAX = 5;
     public static final int COOLDOWN = 10;
 
-    protected UUID uuid;
+    protected final UUID uuid;
     protected Location home, bed, anchor, back;
-    protected Map<String, Location> list;
-    protected List<UUID> requests;
+    protected final Map<String, Location> list;
+    protected final List<UUID> requests;
     protected long anchor_cooldown = 0, cross_world_cooldown = 0;
 
     public TeleportList(Player player) {
@@ -71,18 +71,18 @@ public class TeleportList {
         this.bed = bed;
     }
 
-    public boolean hasBed() {
+    public boolean hasNoBed() {
         if (this.bed == null) {
-            return false;
+            return true;
         }
-        return this.bed.getBlock().getBlockData().getMaterial().name().contains("_BED");
+        return !this.bed.getBlock().getBlockData().getMaterial().name().contains("_BED");
     }
 
     public boolean isYourBed(Location location) {
         if (location == null) {
             return false;
         }
-        if (!this.hasBed()) {
+        if (this.hasNoBed()) {
             return false;
         }
         if (location.equals(this.bed)) {
@@ -91,25 +91,25 @@ public class TeleportList {
         return this.getOtherBedBlock().equals(location);
     }
 
-    public boolean hasAnchor() {
+    public boolean hasNoAnchor() {
         if (this.anchor == null) {
-            return false;
+            return true;
         }
-        return this.anchor.getBlock().getBlockData().getMaterial() == Material.RESPAWN_ANCHOR;
+        return this.anchor.getBlock().getBlockData().getMaterial() != Material.RESPAWN_ANCHOR;
     }
 
     public boolean isYourAnchor(Location location) {
         if (location == null) {
             return false;
         }
-        if (!this.hasAnchor()) {
+        if (this.hasNoAnchor()) {
             return false;
         }
         return location.equals(this.anchor);
     }
 
     public RespawnAnchor getAnchorBlock() {
-        if (!this.hasAnchor()) {
+        if (this.hasNoAnchor()) {
             return null;
         }
         Block anchor_block = this.anchor.getBlock();
@@ -188,10 +188,7 @@ public class TeleportList {
         if (count < MAX) {
             return true;
         }
-        if (this.get(name) != null && count == MAX) {
-            return true;
-        }
-        return false;
+        return this.get(name) != null && count == MAX;
     }
 
     public void request(Player player) {
@@ -221,7 +218,7 @@ public class TeleportList {
     }
 
     public static Location stringToLoc(Application application, String s) {
-        if (!s.equals("") && s.contains(",")) {
+        if (s.contains(",")) {
             String[] split = s.split(",");
             World world = application.getServer().getWorld(split[0]);
             if (world != null) {

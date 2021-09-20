@@ -13,7 +13,8 @@ import org.bukkit.entity.Player;
 
 public class QuickTeleportCommand implements CommandExecutor {
 
-    static ChatColor RED = ChatColor.RED, RESET = ChatColor.RESET;
+    static final ChatColor RED = ChatColor.RED;
+    static final ChatColor RESET = ChatColor.RESET;
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -49,7 +50,6 @@ public class QuickTeleportCommand implements CommandExecutor {
         TeleportList list = Teleport.getList(player.getUniqueId());
         if (!list.hasHome()) {
             player.sendMessage("You haven't set a home yet.");
-            return true;
         }
         Teleport.instant(player, "home", list.getHome());
         return true;

@@ -21,11 +21,16 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.logging.Logger;
+
+
 public class PlayerListener implements Listener {
 
-    Application application;
+    final Application application;
+    static Logger LOGGER;
 
     public PlayerListener(Application application) {
+        LOGGER = application.getLogger();
         this.application = application;
     }
 
@@ -38,7 +43,9 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        this.application.saveFile(player, Teleport.getList(player.getUniqueId()).toJSON());
+        if (this.application.saveFile(player, Teleport.getList(player.getUniqueId()).toJSON())) {
+            LOGGER.warning("Error while saving teleports of player P#" + player.getUniqueId());
+        }
     }
 
     @EventHandler

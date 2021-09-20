@@ -58,13 +58,13 @@ public class Worlds {
         if (location == null) {
             return null;
         }
-        if (isSpawnable(location)) {
+        if (canSpawn(location)) {
             System.out.println(TeleportList.locToString("location", location));
             return location;
         }
 
         Location center = getCenter(location);
-        if (isSpawnable(center)) {
+        if (canSpawn(center)) {
             System.out.println(TeleportList.locToString("center", center));
             return center;
         }
@@ -77,32 +77,32 @@ public class Worlds {
         World world = center.getWorld();
 
         Location above = new Location(world, x, y + 1, z, yaw, pitch);
-        if (isSpawnable(above)) {
+        if (canSpawn(above)) {
             System.out.println(TeleportList.locToString("above", above));
             return above;
         }
         Location below = new Location(world, x, y - 1, z, yaw, pitch);
-        if (isSpawnable(below)) {
+        if (canSpawn(below)) {
             System.out.println(TeleportList.locToString("below", below));
             return below;
         }
         Location top = new Location(world, x, y, z + 1, yaw, pitch);
-        if (isSpawnable(top)) {
+        if (canSpawn(top)) {
             System.out.println(TeleportList.locToString("top", top));
             return top;
         }
         Location bottom = new Location(world, x, y, z - 1, yaw, pitch);
-        if (isSpawnable(bottom)) {
+        if (canSpawn(bottom)) {
             System.out.println(TeleportList.locToString("bottom", bottom));
             return bottom;
         }
         Location left = new Location(world, x + 1, y, z, yaw, pitch);
-        if (isSpawnable(left)) {
+        if (canSpawn(left)) {
             System.out.println(TeleportList.locToString("left", left));
             return left;
         }
         Location right = new Location(world, x - 1, y, z, yaw, pitch);
-        if (isSpawnable(right)) {
+        if (canSpawn(right)) {
             System.out.println(TeleportList.locToString("right", right));
             return right;
         }
@@ -121,14 +121,8 @@ public class Worlds {
         return new Location(world, x, y, z, yaw, pitch);
     }
 
-    public static boolean isSpawnable(Location location) {
+    public static boolean canSpawn(Location location) {
         return isFreeBlock(location);
-//        Location above = location.clone();
-//        above.setY(location.getY() + 1);
-//        boolean main_check = isFreeBlock(location);
-//        boolean above_check = isFreeBlock(above);
-//
-//        return (main_check && above_check);
     }
 
     public static boolean isFreeBlock(Location location) {
@@ -140,10 +134,6 @@ public class Worlds {
         Vector target = look_at.toVector(); //our target location (Point B)
         from.setDirection(target.subtract(from.toVector())); //set the origin's direction to be the direction vector between point A and B.
         return from;
-
-//        Location angle = from.setDirection(look_at.toVector());
-//        angle.setYaw(angle.getYaw() - 180);
-//        return angle;
     }
 
 }

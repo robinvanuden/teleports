@@ -7,6 +7,9 @@ import com.varestorm.plugins.teleports.commands.QuickTeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportPlayerCommand;
 import com.varestorm.plugins.teleports.listener.PlayerListener;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.PluginCommand;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -14,7 +17,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.Scanner;
 
 public final class Application extends JavaPlugin {
@@ -26,21 +28,19 @@ public final class Application extends JavaPlugin {
 
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         QuickTeleportCommand quickTeleportCommand = new QuickTeleportCommand();
-        Objects.requireNonNull(this.getServer().getPluginCommand("list")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("spawn")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("bed")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("back")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("anchor")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("home")).setExecutor(quickTeleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("sethome")).setExecutor(quickTeleportCommand);
+        this.registerCommand("list", quickTeleportCommand);
+        this.registerCommand("spawn", quickTeleportCommand);
+        this.registerCommand("bed", quickTeleportCommand);
+        this.registerCommand("back", quickTeleportCommand);
+        this.registerCommand("anchor", quickTeleportCommand);
+        this.registerCommand("home", quickTeleportCommand);
+        this.registerCommand("sethome", quickTeleportCommand);
 
         TeleportCommand teleportCommand = new TeleportCommand(this);
-        Objects.requireNonNull(this.getServer().getPluginCommand("tp")).setExecutor(teleportCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("tp")).setTabCompleter(teleportCommand);
+        this.registerCommand("tp", teleportCommand, teleportCommand);
 
         TeleportPlayerCommand teleportPlayerCommand = new TeleportPlayerCommand(this);
-        Objects.requireNonNull(this.getServer().getPluginCommand("tpp")).setExecutor(teleportPlayerCommand);
-        Objects.requireNonNull(this.getServer().getPluginCommand("tpp")).setTabCompleter(teleportPlayerCommand);
+        this.registerCommand("tpp", teleportPlayerCommand, teleportPlayerCommand);
 
         for (Player player : this.getServer().getOnlinePlayers()) {
             this.setList(player);
@@ -52,10 +52,28 @@ public final class Application extends JavaPlugin {
         // Plugin shutdown logic
         for (Player player : this.getServer().getOnlinePlayers()) {
             try {
-                this.saveFile(player, Teleport.getList(player.getUniqueId()).toJSON());
+                if (this.saveFile(player, Teleport.getList(player.getUniqueId()).toJSON())) {
+                    System.out.println("Error while saving teleports of P#" + player.getUniqueId());
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private void registerCommand(String name, CommandExecutor executor) {
+        this.registerCommand(name, executor, null);
+    }
+
+    private void registerCommand(String name, CommandExecutor executor, TabCompleter completer) {
+        PluginCommand command = this.getServer().getPluginCommand(name);
+        if (command != null) {
+            command.setExecutor(executor);
+            if (completer != null) {
+                command.setTabCompleter(completer);
+            }
+        } else {
+            this.getLogger().warning(String.format("Failed registering command: /%s", name));
         }
     }
 
@@ -68,7 +86,7 @@ public final class Application extends JavaPlugin {
         }
     }
 
-    protected JsonObject loadFile(Player player) {
+    private JsonObject loadFile(Player player) {
         File file = this.getDataFolder().getParentFile();
         File folder = new File(file.getAbsolutePath() + "/teleport");
         if (!folder.isDirectory() && !folder.mkdirs()) {
@@ -102,18 +120,18 @@ public final class Application extends JavaPlugin {
         File folder = new File(file.getAbsolutePath() + "/teleport");
         if (!folder.isDirectory() && !folder.mkdirs()) {
             System.out.println("Could save teleport directory");
-            return false;
+            return true;
         }
         File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
         if (!json_file.exists()) {
             try {
                 if (!json_file.createNewFile()) {
-                    System.out.println(String.format("Could save player file of %s at %s", player.getUniqueId(), json_file.getAbsolutePath()));
-                    return false;
+                    System.out.printf("Could save player file of %s at %s%n", player.getUniqueId(), json_file.getAbsolutePath());
+                    return true;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                return false;
+                return true;
             }
         }
         try {
@@ -122,10 +140,10 @@ public final class Application extends JavaPlugin {
 //            System.out.println(content);
             writer.write(content);
             writer.close();
-            return true;
+            return false;
         } catch (IOException e) {
             e.printStackTrace();
-            return false;
+            return true;
         }
     }
 }

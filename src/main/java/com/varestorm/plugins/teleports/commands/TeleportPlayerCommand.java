@@ -18,9 +18,12 @@ import java.util.UUID;
 
 public class TeleportPlayerCommand implements CommandExecutor, TabCompleter {
 
-    static ChatColor RED = ChatColor.RED, GREEN = ChatColor.GREEN, RESET = ChatColor.RESET, BLUE = ChatColor.BLUE;
+    static final ChatColor RED = ChatColor.RED;
+    static final ChatColor GREEN = ChatColor.GREEN;
+    static final ChatColor RESET = ChatColor.RESET;
+    static final ChatColor BLUE = ChatColor.BLUE;
 
-    Application application;
+    final Application application;
     public static List<UUID> list;
 
     public TeleportPlayerCommand(Application application) {
@@ -99,7 +102,7 @@ public class TeleportPlayerCommand implements CommandExecutor, TabCompleter {
 
     protected boolean accept(Player player) {
         Location location = Worlds.getFreeLocation(player.getLocation());
-        if (!Worlds.isSpawnable(location)) {
+        if (!Worlds.canSpawn(location)) {
             player.sendMessage(String.format("Your location seems%s obstructed%s. Go to a clear location and try again.", RED, RESET));
             return true;
         }

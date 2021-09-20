@@ -21,9 +21,12 @@ import java.util.*;
 
 public class TeleportCommand implements CommandExecutor, TabCompleter {
 
-    static ChatColor RED = ChatColor.RED, GREEN = ChatColor.GREEN, RESET = ChatColor.RESET, BLUE = ChatColor.BLUE;
+    static final ChatColor RED = ChatColor.RED;
+    static final ChatColor GREEN = ChatColor.GREEN;
+    static final ChatColor RESET = ChatColor.RESET;
+    static ChatColor BLUE = ChatColor.BLUE;
 
-    Application application;
+    final Application application;
     public static List<UUID> list;
 
     public TeleportCommand(Application application) {
@@ -36,8 +39,6 @@ public class TeleportCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player) {
             Player player = (Player) sender;
             if (args.length > 0) {
-                if (args[0].equals("list")) {
-                }
                 if ("list".equals(args[0])) {
                     return this.list(player);
                 }
@@ -122,8 +123,8 @@ public class TeleportCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(String.format("%s%s%sTeleport list", ChatColor.RESET, ChatColor.GRAY, ChatColor.BOLD));
         player.sendMessage("---------------------------");
         player.sendMessage(String.format("Home %s" + RESET, (tp_list.getHome() == null) ? RED + "not set" : GREEN + "set"));
-        player.sendMessage(String.format("Bed %s" + RESET, (!tp_list.hasBed()) ? RED + "not set" : GREEN + "set"));
-        player.sendMessage(String.format("Anchor %s" + RESET, (!tp_list.hasAnchor()) ? RED + "not set" : String.format("%sset%s and has %s%s%s charges left.", GREEN, RESET, color, charges, RESET)));
+        player.sendMessage(String.format("Bed %s" + RESET, (tp_list.hasNoBed()) ? RED + "not set" : GREEN + "set"));
+        player.sendMessage(String.format("Anchor %s" + RESET, (tp_list.hasNoAnchor()) ? RED + "not set" : String.format("%sset%s and has %s%s%s charges left.", GREEN, RESET, color, charges, RESET)));
         player.sendMessage("---------------------------");
         if (list.size() > 0) {
             int count = 1;
@@ -145,7 +146,7 @@ public class TeleportCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(String.format("%sWarning!%s No teleport found.", RED, RESET));
             return true;
         }
-        if (!Worlds.isSpawnable(teleport)) {
+        if (!Worlds.canSpawn(teleport)) {
             player.sendMessage(String.format("%sWarning!%s Your teleport is obstructed.", RED, RESET));
             return true;
         }

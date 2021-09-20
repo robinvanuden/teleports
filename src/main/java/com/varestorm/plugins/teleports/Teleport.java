@@ -11,7 +11,8 @@ import java.util.UUID;
 public class Teleport {
 
     protected static Map<UUID, TeleportList> list;
-    static ChatColor RED = ChatColor.RED, RESET = ChatColor.RESET;
+    static final ChatColor RED = ChatColor.RED;
+    static final ChatColor RESET = ChatColor.RESET;
 
     public static void init() {
         list = new HashMap<>();
@@ -21,10 +22,9 @@ public class Teleport {
         return list.getOrDefault(uuid, null);
     }
 
-    public static TeleportList setList(Player player, Application application, JsonObject object) {
+    public static void setList(Player player, Application application, JsonObject object) {
         TeleportList tp = setList(player);
         tp.fromJson(application, object);
-        return tp;
     }
 
     public static TeleportList setList(Player player) {
@@ -55,7 +55,7 @@ public class Teleport {
             }
 
             name = getName(name, world);
-            if (!Worlds.isSpawnable(to)) {
+            if (!Worlds.canSpawn(to)) {
                 player.sendMessage(String.format("%sWarning!%s %s is obstructed.", RED, RESET, name));
                 return;
             }
