@@ -7,7 +7,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.logging.Logger;
@@ -43,11 +42,6 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onRespawnSet(PlayerInteractEvent event) {
         // TODO: Do set respawn anchor logic
-    }
-
-    @EventHandler
-    public void onPlayerMoved(PlayerMoveEvent event) {
-        // TODO: Do cooldown reset / cancel teleport logic
     }
 
 }

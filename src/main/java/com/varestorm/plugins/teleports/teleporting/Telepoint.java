@@ -32,14 +32,18 @@ public class Telepoint {
     }
 
     public String getTitle() {
-        switch (this.world.getEnvironment()) {
+        return getTitle(this.world.getEnvironment(), this.name);
+    }
+
+    public static String getTitle(World.Environment environment, String name) {
+        switch (environment) {
             case NETHER:
-                return ChatColor.GOLD + this.name + ChatColor.RESET;
+                return ChatColor.GOLD + name + ChatColor.RESET;
             case THE_END:
-                return ChatColor.DARK_PURPLE + this.name + ChatColor.RESET;
+                return ChatColor.DARK_PURPLE + name + ChatColor.RESET;
             default:
             case NORMAL:
-                return ChatColor.BLUE + this.name + ChatColor.RESET;
+                return ChatColor.BLUE + name + ChatColor.RESET;
         }
     }
 

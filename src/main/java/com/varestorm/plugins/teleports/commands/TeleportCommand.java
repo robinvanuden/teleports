@@ -8,23 +8,26 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
-public class TeleportCommand implements CommandExecutor, TabCompleter {
+public class TeleportCommand implements CommandExecutor, TabCompleter, Listener {
 
     static final ChatColor RED = ChatColor.RED;
     static final ChatColor GREEN = ChatColor.GREEN;
+    static final ChatColor BLUE = ChatColor.BLUE;
+    static final ChatColor BOLD = ChatColor.BOLD;
     static final ChatColor RESET = ChatColor.RESET;
 
     final Application application;
-    public static List<UUID> list;
+    public static Map<UUID, Integer> areTeleporting;
 
     public TeleportCommand(Application application) {
         this.application = application;
-        TeleportCommand.list = new ArrayList<>();
+        TeleportCommand.areTeleporting = new HashMap<>();
     }
 
     @Override
@@ -41,16 +44,28 @@ public class TeleportCommand implements CommandExecutor, TabCompleter {
                         case "set":
                             return client.set(args[1]);
                         case "to":
-                            return client.to(args[1]);
+                            if (!client.to(args[1])) {
+                                return true;
+                            }
+                            return true;
                         case "remove":
                             return client.remove(args[1]);
                         default:
                             player.sendMessage("This command is temporarily not available...");
+                            return true;
                     }
                 }
             }
         }
         return false;
+    }
+
+    @EventHandler
+    public void onPlayerMoved(PlayerMoveEvent event) {
+        TeleportClient client = this.application.getClient(event.getPlayer().getUniqueId());
+        if (client != null) {
+            client.cancel();
+        }
     }
 
     @Override

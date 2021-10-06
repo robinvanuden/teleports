@@ -4,41 +4,30 @@ import com.varestorm.plugins.teleports.client.TeleportClient;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitScheduler;
 
 public class Teleport {
 
-    static final ChatColor RED = ChatColor.RED;
-    static final ChatColor AQUA = ChatColor.DARK_AQUA;
-    static final ChatColor RESET = ChatColor.RESET;
-
-    public static boolean instant(Player player, Telepoint telepoint, TeleportClient client) {
+    public static boolean instant(Telepoint telepoint, TeleportClient client) {
+        Player player = client.getPlayer();
         client.setBack(player.getLocation());
         Location location = telepoint.getSafeLocation();
-        player.teleport(location);
         particle(location, client);
-        player.removePotionEffect(PotionEffectType.BLINDNESS);
+        player.teleport(location);
+        client.getApplication().getServer().getScheduler().runTaskLater(client.getApplication(), () -> {
+            player.removePotionEffect(PotionEffectType.BLINDNESS);
+            player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
+        }, 10);
         return true;
     }
 
-    public static boolean start(Player player, Telepoint telepoint, TeleportClient client) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20, 1000, false));
-        BukkitScheduler scheduler = client.getApplication().getServer().getScheduler();
-        return to(player, telepoint, client);
-    }
-
-    public static void process(Player player, Telepoint telepoint, TeleportClient client) {
-    }
-
-    public static boolean to(Player player, Telepoint telepoint, TeleportClient client) {
-        client.setBack(player.getLocation());
-        Location location = telepoint.getSafeLocation();
-        player.teleport(location);
-        particle(location, client);
-        client.removeEnderPearl();
-        return true;
+    public static boolean to(Telepoint telepoint, TeleportClient client) {
+        if (instant(telepoint, client)) {
+            client.removeEnderPearl();
+            return true;
+        }
+        return false;
     }
 
     public static void particle(Location location, TeleportClient client) {
@@ -80,9 +69,6 @@ public class Teleport {
                 world.spawnParticle(Particle.REDSTONE, location4, count, dustOptions4);
                 world.spawnParticle(Particle.REDSTONE, location4, count, dustOptions6);
             });
-
-
-            world.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
         }
     }
 

@@ -19,22 +19,27 @@ public class QuickTeleportCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-            System.out.println(command.getName());
-            switch (command.getName()) {
-                case "back":
-                case "home":
-                case "bed":
-                case "anchor":
-                    return this.application.getClient(player.getUniqueId()).instant(command.getName());
-                case "spawn":
-                case "sethome":
-                    player.sendMessage("This command is temporarily not available...");
-            }
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("Only players can teleport!");
             return true;
         }
-        return false;
+        Player player = (Player) sender;
+        switch (command.getName()) {
+            case "back":
+            case "home":
+            case "bed":
+            case "anchor":
+                if (!this.application.getClient(player.getUniqueId()).instant(command.getName())) {
+                    return true;
+                }
+                return true;
+            case "spawn":
+            case "sethome":
+                player.sendMessage("This command is temporarily not available...");
+                return true;
+            default:
+                return false;
+        }
     }
 
 

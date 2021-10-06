@@ -42,6 +42,7 @@ public final class Application extends JavaPlugin {
 
         TeleportCommand teleportCommand = new TeleportCommand(this);
         this.registerCommand("tp", teleportCommand, teleportCommand);
+        this.getServer().getPluginManager().registerEvents(teleportCommand, this);
 
         TeleportPlayerCommand teleportPlayerCommand = new TeleportPlayerCommand(this);
         this.registerCommand("tpp", teleportPlayerCommand, teleportPlayerCommand);
