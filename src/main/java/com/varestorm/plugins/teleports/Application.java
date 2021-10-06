@@ -1,12 +1,12 @@
 package com.varestorm.plugins.teleports;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.varestorm.plugins.teleports.client.TeleportClient;
 import com.varestorm.plugins.teleports.commands.QuickTeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportPlayerCommand;
 import com.varestorm.plugins.teleports.listener.PlayerListener;
+import org.bukkit.World;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -14,21 +14,25 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public final class Application extends JavaPlugin {
+
+    private static Application application;
+    private Map<UUID, TeleportClient> clients;
 
     @Override
     public void onEnable() {
         // Plugin startup logic
-        Teleport.init();
+        this.clients = new HashMap<>();
+        application = this;
 
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        QuickTeleportCommand quickTeleportCommand = new QuickTeleportCommand();
-        this.registerCommand("list", quickTeleportCommand);
+        QuickTeleportCommand quickTeleportCommand = new QuickTeleportCommand(this);
         this.registerCommand("spawn", quickTeleportCommand);
         this.registerCommand("bed", quickTeleportCommand);
         this.registerCommand("back", quickTeleportCommand);
@@ -43,21 +47,15 @@ public final class Application extends JavaPlugin {
         this.registerCommand("tpp", teleportPlayerCommand, teleportPlayerCommand);
 
         for (Player player : this.getServer().getOnlinePlayers()) {
-            this.setList(player);
+            this.setClient(player);
         }
     }
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
-        for (Player player : this.getServer().getOnlinePlayers()) {
-            try {
-                if (this.saveFile(player, Teleport.getList(player.getUniqueId()).toJSON())) {
-                    System.out.println("Error while saving teleports of P#" + player.getUniqueId());
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        for (TeleportClient client : this.clients.values()) {
+            client.saveTelepoints();
         }
     }
 
@@ -77,42 +75,10 @@ public final class Application extends JavaPlugin {
         }
     }
 
-    public void setList(Player player) {
-        JsonObject json = this.loadFile(player);
-        if (json != null) {
-            Teleport.setList(player, this, json);
-        } else {
-            Teleport.setList(player);
+    public void setClient(Player player) {
+        if (!this.clients.containsKey(player.getUniqueId())) {
+            this.clients.put(player.getUniqueId(), new TeleportClient(player, this));
         }
-    }
-
-    private JsonObject loadFile(Player player) {
-        File file = this.getDataFolder().getParentFile();
-        File folder = new File(file.getAbsolutePath() + "/teleport");
-        if (!folder.isDirectory() && !folder.mkdirs()) {
-            System.out.println("Error while create directory /teleport");
-        }
-        File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
-        if (json_file.exists()) {
-            StringBuilder contents = new StringBuilder();
-            try {
-                Scanner scanner = new Scanner(json_file);
-                while (scanner.hasNextLine()) {
-                    contents.append(scanner.nextLine());
-                }
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            try {
-                JsonElement element = new JsonParser().parse(contents.toString());
-                if (element != null) {
-                    return element.getAsJsonObject();
-                }
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return null;
     }
 
     public boolean saveFile(Player player, JsonObject object) {
@@ -145,5 +111,13 @@ public final class Application extends JavaPlugin {
             e.printStackTrace();
             return true;
         }
+    }
+
+    public static World getWorld(String name) {
+        return application.getServer().getWorld(name);
+    }
+
+    public TeleportClient getClient(UUID uuid) {
+        return this.clients.get(uuid);
     }
 }

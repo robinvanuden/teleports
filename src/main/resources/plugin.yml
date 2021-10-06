@@ -4,6 +4,7 @@ main: com.varestorm.plugins.teleports.Application
 api-version: 1.17
 authors: [Rob_Varestorm]
 description: Teleport plugin
+prefix: TP
 website: varestorm.com
 commands:
   spawn:
