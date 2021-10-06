@@ -1,9 +1,14 @@
 package com.varestorm.plugins.teleports.teleporting;
 
 import com.varestorm.plugins.teleports.Application;
-import org.bukkit.*;
+import com.varestorm.plugins.teleports.Teleport;
+import org.bukkit.ChatColor;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Player;
 
 import java.util.Objects;
 
@@ -27,12 +32,22 @@ public class Telepoint {
         return this.location;
     }
 
+    public boolean isInterdimensional(Player player) {
+        World world = player.getLocation().getWorld();
+        if (world == null) {
+            return true;
+        }
+        World.Environment environment = world.getEnvironment();
+        World.Environment environment2 = this.getEnvironment();
+        return (!environment.equals(environment2));
+    }
+
     public String getName() {
         return this.name;
     }
 
     public String getTitle() {
-        return getTitle(this.world.getEnvironment(), this.name);
+        return getTitle(this.getEnvironment(), this.name).toLowerCase();
     }
 
     public static String getTitle(World.Environment environment, String name) {
@@ -53,6 +68,10 @@ public class Telepoint {
 
     public World getWorld() {
         return this.world;
+    }
+
+    public World.Environment getEnvironment() {
+        return this.getWorld().getEnvironment();
     }
 
     public static Type getType(String name) {
@@ -81,39 +100,29 @@ public class Telepoint {
     }
 
     public static Location safeLocation(Location location) {
-        Color RED = Color.RED;
-        Color GREEN = Color.GREEN;
         World world = location.getWorld();
-        location.setX(location.getBlockX() + 0.5);
-        location.setY(location.getBlockY() + 0.5);
-        location.setZ(location.getBlockZ() + 0.5);
         if (world == null) {
             return null;
         }
-        Block block = location.getBlock();
-        Block top = block.getRelative(BlockFace.UP);
-        Particle.DustOptions red = new Particle.DustOptions(RED, 3);
-        Particle.DustOptions green = new Particle.DustOptions(GREEN, 3);
+        location.setX(location.getBlockX() + 0.5);
+        location.setY(location.getBlockY() + 0.5);
+        location.setZ(location.getBlockZ() + 0.5);
 
+        Block block = location.getBlock();
+        if (block.isPassable()) {
+            return location;
+        }
+        Block top = block.getRelative(BlockFace.UP);
         Location topLocation = top.getLocation();
         topLocation.setX(topLocation.getBlockX() + 0.5);
         topLocation.setY(topLocation.getBlockY() + 0.5);
         topLocation.setZ(topLocation.getBlockZ() + 0.5);
 
-
-        if (!block.isPassable()) {
-            world.spawnParticle(Particle.REDSTONE, location, 5, red);
-            return null;
-        } else {
-            world.spawnParticle(Particle.REDSTONE, location, 5, green);
+        if (top.isPassable()) {
+            return topLocation;
         }
-        if (!top.isPassable()) {
-            world.spawnParticle(Particle.REDSTONE, topLocation, 5, red);
-            return null;
-        } else {
-            world.spawnParticle(Particle.REDSTONE, topLocation, 5, green);
-        }
-        return location;
+        Teleport.particle(location, Color.RED);
+        return null;
     }
 
     public static Telepoint fromJson(String s) {

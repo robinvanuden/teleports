@@ -3,6 +3,8 @@ package com.varestorm.plugins.teleports.client;
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.Teleport;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -38,7 +40,7 @@ public class TeleportClient {
         LOGGER.info(player.getDisplayName() + ".teleports loaded");
         this.player = player;
         this.application = application;
-        this.bar = Bukkit.createBossBar("Teleport cooldown", BarColor.BLUE, BarStyle.SOLID);
+        this.bar = Bukkit.createBossBar("Charging teleport particles", BarColor.YELLOW, BarStyle.SOLID);
         this.isTeleporting = false;
         this.hasCooldown = false;
         this.list = new HashMap<>();
@@ -94,22 +96,17 @@ public class TeleportClient {
         return true;
     }
 
-    public boolean instant(String name) {
+    public void instant(String name) {
         if (this.isTeleporting) {
-            this.player.sendMessage("You are still teleporting, please wait...");
-            return false;
+            this.sendError("You are still teleporting, please wait...");
+            return;
         }
         if (this.hasCooldown) {
-            this.player.sendMessage(String.format("The %sTeleporter%s is recharging after interdimensional jump. Please wait...", BLUE, RESET));
-            return false;
+            this.sendError(String.format("%sInterdimensional teleporting%s uses a lot of power. Please wait until your meter is full...", BLUE, RESET));
+            return;
         }
         Telepoint telepoint = null;
-        boolean useEnderpearls = true;
         switch (name) {
-            case "back":
-                useEnderpearls = false;
-                telepoint = this.back;
-                break;
             case "home":
                 telepoint = this.home;
                 break;
@@ -120,49 +117,67 @@ public class TeleportClient {
                 telepoint = this.anchor;
                 break;
         }
-        if (useEnderpearls && this.hasNoEnderPearls()) {
-            this.player.sendMessage(String.format("You need %sEnder pearls%s to teleport!", AQUA, RESET));
-            return false;
+        if (this.hasNoEnderPearls()) {
+            this.sendError(String.format("You need %sEnder pearls%s to teleport!", AQUA, RESET));
+            return;
         }
         if (telepoint == null) {
-            this.player.sendMessage("Teleport not found!");
-            return false;
+            this.sendError("Teleport not found!");
+            return;
         }
         if (telepoint.getSafeLocation() == null) {
-            this.player.sendMessage(String.format("Teleport %s not safe!", telepoint.getTitle()));
-            return false;
+            this.sendError(String.format("Teleport %s is not safe!", telepoint.getTitle()));
+            return;
         }
-        if (Teleport.instant(telepoint, this)) {
-            this.player.sendMessage(String.format("Teleported to %s%s%s!", BLUE, telepoint.getTitle(), RESET));
-            return true;
+        if (telepoint.isInterdimensional(this.player)) {
+            this.setCooldown();
         }
-        return false;
+        if (!Teleport.instant(telepoint, this)) {
+            this.sendError(String.format("Can't teleport you to %s", telepoint.getTitle().toLowerCase()));
+        }
+    }
+
+    public void toBack() {
+        if (this.hasCooldown) {
+            this.sendError(String.format("The %sTeleporter%s is recharging after interdimensional jump. Please wait...", BLUE, RESET));
+            return;
+        }
+        if (this.back == null) {
+            this.sendError("You haven't teleported yet.");
+            return;
+        }
+        if (this.back.isInterdimensional(this.player)) {
+            this.setCooldown();
+        }
+        if (!Teleport.instant(this.back, this)) {
+            this.sendError(String.format("Can't teleport you to %s", this.back.getTitle().toLowerCase()));
+        }
     }
 
     public boolean to(String name) {
         if (this.isTeleporting) {
-            this.player.sendMessage("You are still teleporting, please wait...");
+            this.sendError("You are still teleporting, please wait...");
             return false;
         }
         if (this.hasCooldown) {
-            this.player.sendMessage("You are still on cooldown, please wait...");
+            this.sendError("You are still on cooldown, please wait...");
             return false;
         }
         if (this.hasNoEnderPearls()) {
-            this.player.sendMessage(String.format("You need %sEnder pearls%s to teleport!", AQUA, RESET));
+            this.sendError(String.format("You need %sEnder pearls%s to teleport!", AQUA, RESET));
             return false;
         }
         Telepoint telepoint = this.list.get(name);
         if (telepoint == null) {
-            this.player.sendMessage(String.format("Teleport %s%s%s not found!", BLUE, name, RESET));
+            this.sendError(String.format("Teleport %s%s%s not found!", BLUE, name, RESET));
             return false;
         }
         if (!telepoint.getType().equals(Telepoint.Type.CUSTOM)) {
-            this.player.sendMessage(String.format("Teleport %s%s%s not found!", BLUE, name, RESET));
+            this.sendError(String.format("Teleport %s not found!", telepoint.getTitle()));
             return false;
         }
         if (telepoint.getSafeLocation() == null) {
-            this.player.sendMessage(String.format("Teleport %s%s%s not safe!", BLUE, name, RESET));
+            this.player.sendMessage(String.format("Teleport %s is not safe!", telepoint.getTitle()));
             return false;
         }
 
@@ -175,16 +190,13 @@ public class TeleportClient {
         if (telepoint != null) {
             BukkitScheduler scheduler = this.application.getServer().getScheduler();
             final int[] counter = {0};
-            boolean interdimensional = false;
+            boolean interdimensional = telepoint.isInterdimensional(this.player);
             String worldName = Telepoint.getTitle(telepoint.getWorld().getEnvironment(), "this dimension");
             World world = this.player.getLocation().getWorld();
             if (world != null) {
-                World.Environment environment = world.getEnvironment();
-                worldName = Telepoint.getTitle(environment, "this dimension");
-                World.Environment environment2 = telepoint.getWorld().getEnvironment();
-                interdimensional = (!environment.equals(environment2));
+                worldName = Telepoint.getTitle(world.getEnvironment(), "this dimension");
                 if (interdimensional) {
-                    switch (environment2) {
+                    switch (telepoint.getWorld().getEnvironment()) {
                         case NORMAL:
                             worldName = "the overworld";
                             break;
@@ -198,13 +210,11 @@ public class TeleportClient {
                             worldName = "a different place";
                             break;
                     }
-                    worldName = Telepoint.getTitle(environment2, worldName);
+                    worldName = Telepoint.getTitle(telepoint.getWorld().getEnvironment(), worldName);
                 }
             }
             String title = String.format(interdimensional ? "%s%sInterdimensional jump" : "%s%sTeleporting!", (!interdimensional ? BLUE : GOLD), BOLD);
 
-
-            final boolean finalInterdimensional = interdimensional;
             final String finalWorldName = worldName;
             this.teleportId = scheduler.scheduleSyncRepeatingTask(this.application, () -> {
 //                System.out.println(counter[0]);
@@ -247,7 +257,7 @@ public class TeleportClient {
                                 this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 5);
                                 scheduler.runTaskLater(this.application, () -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 5);
                                 scheduler.runTaskLater(this.application, () -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 5);
-                                if (finalInterdimensional) {
+                                if (interdimensional) {
                                     this.setCooldown();
                                 }
                             }
@@ -290,18 +300,27 @@ public class TeleportClient {
         BukkitScheduler scheduler = this.application.getServer().getScheduler();
         final int[] count = {0};
         this.cooldownId = scheduler.scheduleSyncRepeatingTask(this.application, () -> {
-            double percentage = 1.0 - ((double) (count[0] / 20) / 10);
+            double percentage = 1.0 - (double) (count[0] / 20) / 10;
             this.bar.setProgress(percentage);
-            System.out.println(percentage);
+            this.particle();
             if (count[0] > 200) {
                 this.hasCooldown = false;
                 scheduler.cancelTask(this.cooldownId);
-                System.out.println("CANCELLED!");
                 this.bar.removePlayer(this.player);
                 this.bar.removeAll();
             }
             count[0]++;
         }, 1, 1);
+    }
+
+    private void particle() {
+        Location location = this.player.getEyeLocation();
+        Random random = new Random();
+        int min = 0;
+        double rand = (double) (random.nextInt(10 - min + 1) + min) / 10;
+        System.out.println(rand);
+        location.setY((location.getY() - 1) + rand);
+        this.player.spawnParticle(Particle.REDSTONE, location, 2, new Particle.DustOptions(Color.YELLOW, 1));
     }
 
     public boolean remove(String name) {
@@ -327,18 +346,20 @@ public class TeleportClient {
         return !inventory.contains(Material.ENDER_PEARL);
     }
 
-    public boolean removeEnderPearl() {
+    public void removeEnderPearl() {
         ItemStack enderPearl = this.getEnderPearls();
-        if (enderPearl == null) {
-            return false;
+        if (enderPearl != null) {
+            enderPearl.setAmount(enderPearl.getAmount() - 1);
         }
-        enderPearl.setAmount(enderPearl.getAmount() - 1);
-        return true;
     }
 
     protected ItemStack getEnderPearls() {
         int slot = this.player.getInventory().first(Material.ENDER_PEARL);
         return this.player.getInventory().getItem(slot);
+    }
+
+    private void sendError(String message) {
+        this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
     }
 
     public void saveTelepoints() {
@@ -354,6 +375,20 @@ public class TeleportClient {
     }
 
     public void setBack(Location location) {
-        this.back = new Telepoint("back", Telepoint.Type.BACK, location.getWorld(), location);
+        this.back = new Telepoint("Back", Telepoint.Type.BACK, location.getWorld(), location);
+    }
+
+    public void setHome() {
+        Location location = this.player.getLocation();
+        this.home = new Telepoint("Home", Telepoint.Type.HOME, location.getWorld(), location);
+        this.player.sendMessage(this.home.getTitle() + " set!");
+        Teleport.particle(this.home.getSafeLocation(), Color.BLUE);
+    }
+
+    public void testHome() {
+        if (this.home == null || this.home.getSafeLocation() == null) {
+            this.player.sendMessage("No home found...");
+        }
+        Teleport.particle(this.home.getSafeLocation(), Color.TEAL);
     }
 }

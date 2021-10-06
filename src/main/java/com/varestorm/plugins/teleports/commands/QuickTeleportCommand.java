@@ -1,6 +1,7 @@
 package com.varestorm.plugins.teleports.commands;
 
 import com.varestorm.plugins.teleports.Application;
+import com.varestorm.plugins.teleports.client.TeleportClient;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -24,17 +25,23 @@ public class QuickTeleportCommand implements CommandExecutor {
             return true;
         }
         Player player = (Player) sender;
+        TeleportClient client = this.application.getClient(player.getUniqueId());
         switch (command.getName()) {
             case "back":
+                client.toBack();
+                return true;
             case "home":
             case "bed":
             case "anchor":
-                if (!this.application.getClient(player.getUniqueId()).instant(command.getName())) {
-                    return true;
-                }
+                client.instant(command.getName());
+                return true;
+            case "sethome":
+                client.setHome();
+                return true;
+            case "testhome":
+                client.testHome();
                 return true;
             case "spawn":
-            case "sethome":
                 player.sendMessage("This command is temporarily not available...");
                 return true;
             default:

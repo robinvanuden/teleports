@@ -5,7 +5,8 @@ import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitScheduler;
+
+import java.util.Random;
 
 public class Teleport {
 
@@ -13,12 +14,13 @@ public class Teleport {
         Player player = client.getPlayer();
         client.setBack(player.getLocation());
         Location location = telepoint.getSafeLocation();
-        particle(location, client);
-        player.teleport(location);
-        client.getApplication().getServer().getScheduler().runTaskLater(client.getApplication(), () -> {
-            player.removePotionEffect(PotionEffectType.BLINDNESS);
-            player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
-        }, 10);
+        particle(location);
+        if (player.teleport(location)) {
+            Application.runLaterAsync(() -> {
+                player.removePotionEffect(PotionEffectType.BLINDNESS);
+                player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
+            }, 5);
+        }
         return true;
     }
 
@@ -30,46 +32,57 @@ public class Teleport {
         return false;
     }
 
-    public static void particle(Location location, TeleportClient client) {
+
+    public static void particle(Location location) {
+        particle(location, Color.fromRGB(138, 43, 226), false);
+    }
+
+    public static void particle(Location location, Color primary) {
+        particle(location, primary, false);
+    }
+
+    public static void particle(Location location, Color primary, boolean low) {
+        if (location == null){
+            return;
+        }
         int count = 5;
         World world = location.getWorld();
         if (world != null) {
-            Application application = client.getApplication();
-            BukkitScheduler scheduler = application.getServer().getScheduler();
 
             Location location2 = new Location(world, location.getX(), location.getY() + 0.5, location.getZ());
+
             Location location3 = new Location(world, location.getX(), location.getY() + 1, location.getZ());
             Location location4 = new Location(world, location.getX(), location.getY() + 1.5, location.getZ());
 
-            Color purple = Color.fromRGB(138, 43, 226);
-            Color purple_light = Color.fromRGB(147, 112, 219);
-            Color purple_lighter = Color.fromRGB(172, 149, 220);
-            Particle.DustOptions dustOptions = new Particle.DustOptions(purple, 3);
-            Particle.DustOptions dustOptions2 = new Particle.DustOptions(purple_light, 3);
-            Particle.DustOptions dustOptions3 = new Particle.DustOptions(purple_light, 2);
-            Particle.DustOptions dustOptions4 = new Particle.DustOptions(purple, 2);
-            Particle.DustOptions dustOptions5 = new Particle.DustOptions(purple_lighter, 1);
-            Particle.DustOptions dustOptions6 = new Particle.DustOptions(purple_lighter, 1);
 
-            scheduler.runTaskAsynchronously(application, () -> {
-                world.spawnParticle(Particle.REDSTONE, location, count, dustOptions);
-                world.spawnParticle(Particle.REDSTONE, location, count, dustOptions3);
+            Application.runAsync(() -> {
+                world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
             });
-            scheduler.runTaskAsynchronously(application, () -> {
-                world.spawnParticle(Particle.REDSTONE, location2, count, dustOptions2);
-                world.spawnParticle(Particle.REDSTONE, location2, count, dustOptions4);
-                world.spawnParticle(Particle.REDSTONE, location2, count, dustOptions5);
+            Application.runAsync(() -> {
+                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
             });
-            scheduler.runTaskAsynchronously(application, () -> {
-                world.spawnParticle(Particle.REDSTONE, location3, count, dustOptions);
-                world.spawnParticle(Particle.REDSTONE, location3, count, dustOptions3);
-            });
-            scheduler.runTaskAsynchronously(application, () -> {
-                world.spawnParticle(Particle.REDSTONE, location4, count, dustOptions2);
-                world.spawnParticle(Particle.REDSTONE, location4, count, dustOptions4);
-                world.spawnParticle(Particle.REDSTONE, location4, count, dustOptions6);
-            });
+            if (!low) {
+                Application.runAsync(() -> {
+                    world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
+                    world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
+                });
+                Application.runAsync(() -> {
+                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+                });
+            }
         }
+    }
+
+    private static Particle.DustOptions randomOption(Color primary) {
+        int min = 2;
+        Random random = new Random();
+        int rand = random.nextInt(10 - min + 1) + min;
+        return new Particle.DustOptions(primary, rand);
     }
 
 }

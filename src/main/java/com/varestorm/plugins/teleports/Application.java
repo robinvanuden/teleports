@@ -39,6 +39,7 @@ public final class Application extends JavaPlugin {
         this.registerCommand("anchor", quickTeleportCommand);
         this.registerCommand("home", quickTeleportCommand);
         this.registerCommand("sethome", quickTeleportCommand);
+        this.registerCommand("testhome", quickTeleportCommand);
 
         TeleportCommand teleportCommand = new TeleportCommand(this);
         this.registerCommand("tp", teleportCommand, teleportCommand);
@@ -116,6 +117,14 @@ public final class Application extends JavaPlugin {
 
     public static World getWorld(String name) {
         return application.getServer().getWorld(name);
+    }
+
+    public static void runAsync(Runnable runnable) {
+        application.getServer().getScheduler().runTaskAsynchronously(application, runnable);
+    }
+
+    public static void runLaterAsync(Runnable runnable, long delay) {
+        application.getServer().getScheduler().runTaskLaterAsynchronously(application, runnable, delay);
     }
 
     public TeleportClient getClient(UUID uuid) {

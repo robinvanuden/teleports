@@ -19,6 +19,8 @@ commands:
     usage: /home
   sethome:
     usage: /sethome
+  testhome:
+    usage: /testhome
   tp:
     usage: /tp
     aliases: [teleport]
