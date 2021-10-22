@@ -32,28 +32,28 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-            TeleportClient client = this.application.getClient(player.getUniqueId());
-            if (args.length > 0) {
-                if ("test".equals(args[0])) {
-                    player.sendMessage("Testing!");
-                }
-                if (args.length > 1) {
-                    switch (args[0]) {
-                        case "set":
-                            return client.set(args[1]);
-                        case "to":
-                            if (!client.to(args[1])) {
-                                return true;
-                            }
-                            return true;
-                        case "remove":
-                            return client.remove(args[1]);
-                        default:
-                            player.sendMessage("This command is temporarily not available...");
-                            return true;
-                    }
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("Only players can teleport!");
+            return true;
+        }
+        Player player = (Player) sender;
+        TeleportClient client = this.application.getClient(player.getUniqueId());
+        if (args.length > 0) {
+            if ("test".equals(args[0])) {
+                player.sendMessage("Testing!");
+            }
+            if (args.length > 1) {
+                switch (args[0]) {
+                    case "set":
+                        return client.set(args[1]);
+                    case "to":
+                        client.to(args[1]);
+                        return true;
+                    case "remove":
+                        return client.remove(args[1]);
+                    default:
+                        player.sendMessage("This command is temporarily not available...");
+                        return true;
                 }
             }
         }
@@ -74,14 +74,12 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
         List<String> commands = new ArrayList<>();
         if (sender instanceof Player) {
             Player player = (Player) sender;
+            commands.add("to");
             commands.add("set");
             commands.add("remove");
-            commands.add("to");
             commands.add("list");
-            commands.add("test");
-            commands.add("boss");
 
-            if (args.length > 0) {
+            if (args.length == 1) {
                 if (args[0].equals("")) {
                     suggestions.addAll(commands);
                 } else {
@@ -91,14 +89,25 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
                         }
                     }
                 }
+                return suggestions;
             }
-            if (args.length > 1) {
-                suggestions.clear();
+            if (args.length == 2) {
                 switch (args[0]) {
                     case "to":
                     case "remove":
-                        return this.application.getClient(player.getUniqueId()).names();
+                        List<String> names = this.application.getClient(player.getUniqueId()).names();
+                        if (args[1].equals("")) {
+                            suggestions.addAll(names);
+                        } else {
+                            for (String n : names) {
+                                if (n.startsWith(args[1])) {
+                                    suggestions.add(n);
+                                }
+                            }
+                        }
+                        break;
                 }
+                return suggestions;
             }
             if (args.length > 2) {
                 // Third argument?

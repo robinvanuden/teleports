@@ -4,6 +4,7 @@ import com.varestorm.plugins.teleports.client.TeleportClient;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.util.Random;
@@ -12,14 +13,15 @@ public class Teleport {
 
     public static boolean instant(Telepoint telepoint, TeleportClient client) {
         Player player = client.getPlayer();
+        player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
         client.setBack(player.getLocation());
         Location location = telepoint.getSafeLocation();
-        particle(location);
         if (player.teleport(location)) {
+            particle(location);
             Application.runLaterAsync(() -> {
-                player.removePotionEffect(PotionEffectType.BLINDNESS);
                 player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
-            }, 5);
+                Application.runLater(() -> player.removePotionEffect(PotionEffectType.BLINDNESS), 1);
+            }, 2);
         }
         return true;
     }
@@ -42,7 +44,7 @@ public class Teleport {
     }
 
     public static void particle(Location location, Color primary, boolean low) {
-        if (location == null){
+        if (location == null) {
             return;
         }
         int count = 5;

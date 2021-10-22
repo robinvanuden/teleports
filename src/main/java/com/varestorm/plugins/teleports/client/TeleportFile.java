@@ -79,18 +79,18 @@ public class TeleportFile {
         File folder = new File(file.getAbsolutePath() + "/teleports");
         if (!folder.isDirectory() && !folder.mkdirs()) {
             System.out.println("Could load teleport directory");
-            return true;
+            return false;
         }
         File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
         if (!json_file.exists()) {
             try {
                 if (!json_file.createNewFile()) {
                     LOGGER.warning(String.format("Could save player file of %s at %s%n", player.getDisplayName(), json_file.getAbsolutePath()));
-                    return true;
+                    return false;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                return true;
+                return false;
             }
         }
         JsonArray array = new JsonArray();
@@ -105,10 +105,10 @@ public class TeleportFile {
 //            System.out.println(content);
             writer.write(content);
             writer.close();
-            return false;
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
-            return true;
+            return false;
         }
     }
 

@@ -87,7 +87,7 @@ public final class Application extends JavaPlugin {
         File file = this.getDataFolder().getParentFile();
         File folder = new File(file.getAbsolutePath() + "/teleport");
         if (!folder.isDirectory() && !folder.mkdirs()) {
-            System.out.println("Could save teleport directory");
+            System.out.println("Couldn't save teleport directory");
             return true;
         }
         File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
@@ -125,6 +125,10 @@ public final class Application extends JavaPlugin {
 
     public static void runLaterAsync(Runnable runnable, long delay) {
         application.getServer().getScheduler().runTaskLaterAsynchronously(application, runnable, delay);
+    }
+
+    public static void runLater(Runnable runnable, long delay) {
+        application.getServer().getScheduler().runTaskLater(application, runnable, delay);
     }
 
     public TeleportClient getClient(UUID uuid) {

@@ -2,7 +2,6 @@ package com.varestorm.plugins.teleports.commands;
 
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -10,8 +9,6 @@ import org.bukkit.entity.Player;
 
 public class QuickTeleportCommand implements CommandExecutor {
 
-    static final ChatColor RED = ChatColor.RED;
-    static final ChatColor RESET = ChatColor.RESET;
     private final Application application;
 
     public QuickTeleportCommand(Application application) {
