@@ -55,7 +55,7 @@ public class TeleportFile {
             if (contents == null) {
                 return null;
             }
-            JsonElement element = new JsonParser().parse(contents);
+            JsonElement element = JsonParser.parseString(contents);
             if (element == null) {
                 return null;
             }
