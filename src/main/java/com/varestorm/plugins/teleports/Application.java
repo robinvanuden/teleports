@@ -124,12 +124,12 @@ public final class Application extends JavaPlugin {
         application.getServer().getScheduler().runTaskAsynchronously(application, runnable);
     }
 
-    public static void runLaterAsync(Runnable runnable, long delay) {
-        application.getServer().getScheduler().runTaskLaterAsynchronously(application, runnable, delay);
+    public static void runLaterAsync(Runnable runnable, long delayTicks) {
+        application.getServer().getScheduler().runTaskLaterAsynchronously(application, runnable, delayTicks);
     }
 
-    public static void runLater(Runnable runnable, long delay) {
-        application.getServer().getScheduler().runTaskLater(application, runnable, delay);
+    public static void runLater(Runnable runnable, long delayTicks) {
+        application.getServer().getScheduler().runTaskLater(application, runnable, delayTicks);
     }
 
     public TeleportClient getClient(UUID uuid) {

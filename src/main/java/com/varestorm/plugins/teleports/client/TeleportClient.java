@@ -5,6 +5,8 @@ import com.varestorm.plugins.teleports.Teleport;
 import com.varestorm.plugins.teleports.teleporting.AnchorPoint;
 import com.varestorm.plugins.teleports.teleporting.BedPoint;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.boss.BarColor;
@@ -74,7 +76,7 @@ public class TeleportClient {
     public boolean set(String raw) {
         String name = raw.toLowerCase().replaceAll("[$&+,:;=?@#|'<> .-^*()%!]", "");
         if (name.isEmpty()) {
-            this.player.sendMessage(String.format("%sPlease enter a valid name!", RED));
+            this.sendMessage(String.format("%sPlease enter a valid name!", RED));
             return true;
         }
         Location location = this.player.getLocation();
@@ -149,6 +151,14 @@ public class TeleportClient {
         }
         if (telepoint.isInterdimensional(this.player)) {
             this.setCooldown();
+        }
+        if (name.equals("anchor")) {
+            if (!this.anchor.hasCharges()) {
+                this.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges... Teleporting to your anchor is not possible.", PURPLE, RESET));
+                return;
+            }
+            System.out.println("anchor");
+            this.anchor.removeCharge();
         }
         if (!Teleport.instant(telepoint, this)) {
             this.sendMessage(String.format("Can't teleport you to %s", telepoint.getTitle().toLowerCase()));
@@ -305,7 +315,7 @@ public class TeleportClient {
         if (this.stop()) {
             this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
             this.player.sendTitle(
-                    String.format("%s%sCancelled!", RED, BOLD),
+                    String.format("%s%sAborted!", RED, BOLD),
                     "You moved!",
                     0, 22, 0
             );
@@ -358,7 +368,7 @@ public class TeleportClient {
 
     public boolean remove(String name) {
         this.list.remove(name);
-        this.player.sendMessage(String.format("Teleport %s%s%s deleted%s!", BLUE, name, RED, RESET));
+        this.sendMessage(String.format("Teleport %s%s%s deleted%s!", BLUE, name, RED, RESET));
         return true;
     }
 
@@ -392,8 +402,7 @@ public class TeleportClient {
     }
 
     private void sendMessage(String message) {
-//        this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
-        this.player.sendMessage(message);
+        this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
     }
 
     public void saveTelepoints() {
@@ -415,8 +424,8 @@ public class TeleportClient {
     public void setHome() {
         Location location = this.player.getLocation();
         this.home = new Telepoint("Home", Telepoint.Type.HOME, location.getWorld(), location);
-        this.player.sendMessage(Telepoint.getTitle(location, "Home") + " location saved!");
-        this.sendMessage(String.format("You can use %s/home%s to teleport to your %s%s.", AQUA, RESET, this.home.getTitle(), RESET));
+        this.sendMessage(Telepoint.getTitle(location, "Home") + " location saved!");
+        this.player.sendMessage(String.format("You can use %s/home%s to teleport to your %s%s.", AQUA, RESET, this.home.getTitle(), RESET));
         Teleport.smoke(this.home.getSafeLocation());
     }
 
@@ -427,8 +436,8 @@ public class TeleportClient {
             return false;
         }
         this.bed = new BedPoint(telepoint);
-        this.player.sendMessage(Telepoint.getTitle(location, "Bed") + " location saved!");
-        this.sendMessage(String.format("You can use %s/bed%s to teleport to this %s%s.", GOLD, RESET, telepoint.getTitle(), RESET));
+        this.sendMessage(Telepoint.getTitle(location, "Bed") + " location saved!");
+        this.player.sendMessage(String.format("You can use %s/bed%s to teleport to this %s%s.", GOLD, RESET, telepoint.getTitle(), RESET));
         Location bed = telepoint.getSafeLocation();
         bed.setY(bed.getBlockY() - 1);
         Teleport.particle(bed);
@@ -444,7 +453,7 @@ public class TeleportClient {
         this.anchor = new AnchorPoint(telepoint);
         this.player.sendMessage(Telepoint.getTitle(location, "Respawn Anchor") + " location saved!");
         this.sendMessage(String.format("You can use %s/anchor%s to teleport to this %s%s.", PURPLE, RESET, telepoint.getTitle(), RESET));
-        Teleport.smoke(this.player.getLocation(), Color.PURPLE);
+        Teleport.smoke(telepoint.getSafeLocation(), Color.PURPLE);
     }
 
     public void testHome() {
@@ -458,7 +467,7 @@ public class TeleportClient {
         if (this.player.getUniqueId().equals(breaker.getUniqueId())) {
             return false;
         }
-        Telepoint telepoint = new Telepoint("Possible", Telepoint.Type.BED, block.getWorld(), block.getLocation());
+        Telepoint telepoint = new Telepoint("Possible Bed", Telepoint.Type.BED, block.getWorld(), block.getLocation());
         if (this.bed.getTelepoint().getSafeLocation().equals(telepoint.getSafeLocation())) {
             this.player.sendMessage(String.format("%s%s%s broke your bed... %s/bed%s doesn't work anymore until you find a new bed.", RED, breaker.getDisplayName(), RESET, GOLD, RESET));
             return true;
@@ -466,7 +475,15 @@ public class TeleportClient {
         return false;
     }
 
-    public static String capitalise(String string) {
-        return Character.toTitleCase(string.charAt(0)) + string.substring(1);
+    public boolean brokeAnchor(Block block, Player breaker) {
+        if (this.player.getUniqueId().equals(breaker.getUniqueId())) {
+            return false;
+        }
+        Telepoint telepoint = new Telepoint("Possible Anchor", Telepoint.Type.ANCHOR, block.getWorld(), block.getLocation());
+        if (this.anchor.getTelepoint().getSafeLocation().equals(telepoint.getSafeLocation())) {
+            this.player.sendMessage(String.format("%s%s%s broke your respawn anchor... %s/anchor%s doesn't work anymore until you find a new anchor.", RED, breaker.getDisplayName(), RESET, PURPLE, RESET));
+            return true;
+        }
+        return false;
     }
 }

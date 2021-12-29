@@ -2,14 +2,18 @@ package com.varestorm.plugins.teleports.listener;
 
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.type.Bed;
+import org.bukkit.block.data.type.RespawnAnchor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -45,21 +49,24 @@ public class PlayerListener implements Listener {
         client.setBack(player.getLocation());
     }
 
-//    @EventHandler
-//    public void onRespawnTrigger(PlayerInteractEvent event) {
-//        Player player = event.getPlayer();
-//        Material material = event.getMaterial();
-//        boolean anchor = material.equals(Material.RESPAWN_ANCHOR);
-//        if (!anchor) {
-//            return;
-//        }
-//        Block block = event.getClickedBlock();
-//        TeleportClient client = this.application.getClient(player);
-//        if (block == null) {
-//            return;
-//        }
-//        client.setAnchor(block.getLocation());
-//    }
+    @EventHandler
+    public void onRespawnTrigger(PlayerInteractEvent event) {
+        if (!event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
+            return;
+        }
+        Block block = event.getClickedBlock();
+        if (block == null) {
+            return;
+        }
+        Material material = block.getType();
+        if (!material.equals(Material.RESPAWN_ANCHOR)) {
+            return;
+        }
+        System.out.println("Click");
+        Player player = event.getPlayer();
+        TeleportClient client = this.application.getClient(player);
+        client.setAnchor(block.getLocation());
+    }
 
     @EventHandler
     public void onBedSet(PlayerBedEnterEvent event) {
@@ -74,7 +81,7 @@ public class PlayerListener implements Listener {
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Block block = event.getBlock();
-        if (block.getBlockData() instanceof Bed){
+        if (block.getBlockData() instanceof Bed) {
             Bed bed = (Bed) block.getBlockData();
             if (!bed.getPart().equals(Bed.Part.HEAD)) {
                 // Switch to top if bottom half is broken
@@ -82,11 +89,22 @@ public class PlayerListener implements Listener {
             }
             this.alertBedBroken(block, player);
         }
+        if (block.getBlockData() instanceof RespawnAnchor) {
+            this.alertAnchorBroken(block, player);
+        }
     }
 
-    private void alertBedBroken(Block block, Player player){
-        for (TeleportClient client : this.application.getClients()){
-            if (client.brokeBed(block, player)){
+    private void alertBedBroken(Block block, Player player) {
+        for (TeleportClient client : this.application.getClients()) {
+            if (client.brokeBed(block, player)) {
+                return;
+            }
+        }
+    }
+
+    private void alertAnchorBroken(Block block, Player player) {
+        for (TeleportClient client : this.application.getClients()) {
+            if (client.brokeAnchor(block, player)) {
                 return;
             }
         }
