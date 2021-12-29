@@ -6,6 +6,7 @@ import com.varestorm.plugins.teleports.teleporting.AnchorPoint;
 import com.varestorm.plugins.teleports.teleporting.BedPoint;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -451,6 +452,18 @@ public class TeleportClient {
             this.player.sendMessage("No home found...");
         }
         Teleport.particle(this.home.getSafeLocation());
+    }
+
+    public boolean brokeBed(Block block, Player breaker) {
+        if (this.player.getUniqueId().equals(breaker.getUniqueId())) {
+            return false;
+        }
+        Telepoint telepoint = new Telepoint("Possible", Telepoint.Type.BED, block.getWorld(), block.getLocation());
+        if (this.bed.getTelepoint().getSafeLocation().equals(telepoint.getSafeLocation())) {
+            this.player.sendMessage(String.format("%s%s%s broke your bed... %s/bed%s doesn't work anymore until you find a new bed.", RED, breaker.getDisplayName(), RESET, GOLD, RESET));
+            return true;
+        }
+        return false;
     }
 
     public static String capitalise(String string) {

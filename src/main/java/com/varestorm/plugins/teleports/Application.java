@@ -16,6 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -136,5 +137,9 @@ public final class Application extends JavaPlugin {
     }
     public TeleportClient getClient(Player player) {
         return this.getClient(player.getUniqueId());
+    }
+
+    public Collection<TeleportClient> getClients() {
+        return this.clients.values();
     }
 }
