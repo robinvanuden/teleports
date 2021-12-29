@@ -1,11 +1,12 @@
 package com.varestorm.plugins.teleports.listener;
 
 import com.varestorm.plugins.teleports.Application;
+import com.varestorm.plugins.teleports.client.TeleportClient;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -39,9 +40,28 @@ public class PlayerListener implements Listener {
         // TODO: Do set back logic
     }
 
-    @EventHandler
-    public void onRespawnSet(PlayerInteractEvent event) {
-        // TODO: Do set respawn anchor logic
-    }
+//    @EventHandler
+//    public void onRespawnTrigger(PlayerInteractEvent event) {
+//        Player player = event.getPlayer();
+//        Material material = event.getMaterial();
+//        boolean anchor = material.equals(Material.RESPAWN_ANCHOR);
+//        if (!anchor) {
+//            return;
+//        }
+//        Block block = event.getClickedBlock();
+//        TeleportClient client = this.application.getClient(player);
+//        if (block == null) {
+//            return;
+//        }
+//        client.setAnchor(block.getLocation());
+//    }
 
+    @EventHandler
+    public void onBedSet(PlayerBedEnterEvent event) {
+        Player player = event.getPlayer();
+        TeleportClient client = this.application.getClient(player);
+        if (client.setBed(event.getBed().getLocation())) {
+            event.setCancelled(true);
+        }
+    }
 }

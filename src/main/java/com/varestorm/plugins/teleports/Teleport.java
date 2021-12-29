@@ -17,7 +17,7 @@ public class Teleport {
         client.setBack(player.getLocation());
         Location location = telepoint.getSafeLocation();
         if (player.teleport(location)) {
-            particle(location);
+            smoke(location);
             Application.runLaterAsync(() -> {
                 player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 Application.runLater(() -> player.removePotionEffect(PotionEffectType.BLINDNESS), 1);
@@ -35,49 +35,59 @@ public class Teleport {
     }
 
 
-    public static void particle(Location location) {
-        particle(location, Color.fromRGB(138, 43, 226), false);
+    public static void smoke(Location location) {
+        Color ender = Color.fromRGB(11, 77, 66);
+        Color purple = Color.fromRGB(138, 43, 226);
+        smoke(location, ender, false);
     }
 
-    public static void particle(Location location, Color primary) {
-        particle(location, primary, false);
+    public static void smoke(Location location, Color primary) {
+        smoke(location, primary, false);
     }
 
-    public static void particle(Location location, Color primary, boolean low) {
+    public static void smoke(Location location, Color primary, boolean low) {
         if (location == null) {
             return;
         }
         int count = 5;
         World world = location.getWorld();
-        if (world != null) {
-
-            Location location2 = new Location(world, location.getX(), location.getY() + 0.5, location.getZ());
-
-            Location location3 = new Location(world, location.getX(), location.getY() + 1, location.getZ());
-            Location location4 = new Location(world, location.getX(), location.getY() + 1.5, location.getZ());
-
-
-            Application.runAsync(() -> {
-                world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
-                world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
-            });
-            Application.runAsync(() -> {
-                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
-                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
-                world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
-            });
-            if (!low) {
-                Application.runAsync(() -> {
-                    world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
-                    world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
-                });
-                Application.runAsync(() -> {
-                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
-                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
-                    world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
-                });
-            }
+        if (world == null) {
+            return;
         }
+
+        Location location2 = new Location(world, location.getX(), location.getY() + 0.5, location.getZ());
+
+        Location location3 = new Location(world, location.getX(), location.getY() + 1, location.getZ());
+        Location location4 = new Location(world, location.getX(), location.getY() + 1.5, location.getZ());
+
+        Application.runAsync(() -> {
+            world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
+            world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
+        });
+        Application.runAsync(() -> {
+            world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+            world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+            world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+        });
+        if (!low) {
+            Application.runAsync(() -> {
+                world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location3, count, randomOption(primary));
+            });
+            Application.runAsync(() -> {
+                world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+                world.spawnParticle(Particle.REDSTONE, location4, count, randomOption(primary));
+            });
+        }
+    }
+
+    public static void particle(Location location) {
+        if (location.getWorld() == null) {
+            return;
+        }
+        World world = location.getWorld();
+        Application.runAsync(() -> world.spawnParticle(Particle.ENCHANTMENT_TABLE, location, 120));
     }
 
     private static Particle.DustOptions randomOption(Color primary) {

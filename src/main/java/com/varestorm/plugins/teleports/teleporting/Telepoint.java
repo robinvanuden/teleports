@@ -1,15 +1,14 @@
 package com.varestorm.plugins.teleports.teleporting;
 
 import com.varestorm.plugins.teleports.Application;
-import com.varestorm.plugins.teleports.Teleport;
 import org.bukkit.ChatColor;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 public class Telepoint {
@@ -24,7 +23,7 @@ public class Telepoint {
     public Telepoint(String name, Type type, World world, Location location) {
         this.location = location;
         this.world = world;
-        this.name = name;
+        this.name = name.toLowerCase();
         this.type = type;
     }
 
@@ -47,7 +46,18 @@ public class Telepoint {
     }
 
     public String getTitle() {
-        return getTitle(this.getEnvironment(), this.name).toLowerCase();
+        return getTitle(this.getEnvironment(), this.name);
+    }
+
+    public static String getTitle(Location location, String name) {
+        return getTitle(location.getWorld(), name);
+    }
+
+    public static String getTitle(@Nullable World world, String name) {
+        if (world == null) {
+            return name;
+        }
+        return getTitle(world.getEnvironment(), name);
     }
 
     public static String getTitle(World.Environment environment, String name) {
@@ -121,7 +131,7 @@ public class Telepoint {
         if (top.isPassable()) {
             return topLocation;
         }
-        Teleport.particle(location, Color.RED);
+//        Teleport.smoke(location, Color.RED);
         return null;
     }
 

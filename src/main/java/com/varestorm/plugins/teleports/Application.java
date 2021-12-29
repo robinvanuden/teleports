@@ -134,4 +134,7 @@ public final class Application extends JavaPlugin {
     public TeleportClient getClient(UUID uuid) {
         return this.clients.get(uuid);
     }
+    public TeleportClient getClient(Player player) {
+        return this.getClient(player.getUniqueId());
+    }
 }

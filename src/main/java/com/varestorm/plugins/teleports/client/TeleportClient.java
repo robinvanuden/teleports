@@ -2,9 +2,9 @@ package com.varestorm.plugins.teleports.client;
 
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.Teleport;
+import com.varestorm.plugins.teleports.teleporting.AnchorPoint;
+import com.varestorm.plugins.teleports.teleporting.BedPoint;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -26,7 +26,9 @@ public class TeleportClient {
 
     private final Player player;
     private final Application application;
-    protected Telepoint home, bed, anchor, back;
+    protected Telepoint home, back;
+    protected BedPoint bed;
+    protected AnchorPoint anchor;
     protected final Map<String, Telepoint> list;
     protected final List<UUID> requests;
     protected long anchor_cooldown = 0, cross_world_cooldown = 0;
@@ -56,10 +58,10 @@ public class TeleportClient {
                     this.home = telepoint;
                 }
                 if (telepoint.getType().equals(Telepoint.Type.BED)) {
-                    this.bed = telepoint;
+                    this.bed = new BedPoint(telepoint);
                 }
                 if (telepoint.getType().equals(Telepoint.Type.ANCHOR)) {
-                    this.anchor = telepoint;
+                    this.anchor = new AnchorPoint(telepoint);
                 }
                 if (telepoint.getType().equals(Telepoint.Type.CUSTOM)) {
                     this.list.put(telepoint.getName(), telepoint);
@@ -111,10 +113,10 @@ public class TeleportClient {
                 telepoint = this.home;
                 break;
             case "bed":
-                telepoint = this.bed;
+                telepoint = this.bed.getTelepoint();
                 break;
             case "anchor":
-                telepoint = this.anchor;
+                telepoint = this.anchor.getTelepoint();
                 break;
             default:
                 this.sendMessage("Teleport doesn't exist.");
@@ -389,15 +391,16 @@ public class TeleportClient {
     }
 
     private void sendMessage(String message) {
-        this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
+//        this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
+        this.player.sendMessage(message);
     }
 
     public void saveTelepoints() {
         List<Telepoint> telepoints = new ArrayList<>();
-        telepoints.add(this.back);
-        telepoints.add(this.home);
-        telepoints.add(this.bed);
-        telepoints.add(this.anchor);
+        if (this.back != null) telepoints.add(this.back);
+        if (this.home != null) telepoints.add(this.home);
+        if (this.bed != null) telepoints.add(this.bed.getTelepoint());
+        if (this.anchor != null) telepoints.add(this.anchor.getTelepoint());
         telepoints.addAll(this.list.values());
         if (!this.file.saveTeleports(this.player, telepoints)) {
             LOGGER.warning(String.format("Telepoints of %s couldn't be saved!", this.player.getName()));
@@ -411,14 +414,46 @@ public class TeleportClient {
     public void setHome() {
         Location location = this.player.getLocation();
         this.home = new Telepoint("Home", Telepoint.Type.HOME, location.getWorld(), location);
-        this.player.sendMessage(this.home.getTitle() + " set!");
-        Teleport.particle(this.home.getSafeLocation(), Color.BLUE);
+        this.player.sendMessage(Telepoint.getTitle(location, "Home") + " location saved!");
+        this.sendMessage(String.format("You can use %s/home%s to teleport to your %s%s.", AQUA, RESET, this.home.getTitle(), RESET));
+        Teleport.smoke(this.home.getSafeLocation());
+    }
+
+    public boolean setBed(Location location) {
+        Telepoint telepoint = new Telepoint("bed", Telepoint.Type.BED, location.getWorld(), location);
+        if (this.bed != null && this.bed.getTelepoint().getSafeLocation().equals(telepoint.getSafeLocation())) {
+            // Bed already clicked on
+            return false;
+        }
+        this.bed = new BedPoint(telepoint);
+        this.player.sendMessage(Telepoint.getTitle(location, "Bed") + " location saved!");
+        this.sendMessage(String.format("You can use %s/bed%s to teleport to this %s%s.", GOLD, RESET, telepoint.getTitle(), RESET));
+        Location bed = telepoint.getSafeLocation();
+        bed.setY(bed.getBlockY() - 1);
+        Teleport.particle(bed);
+        return true;
+    }
+
+    public void setAnchor(Location location) {
+        Telepoint telepoint = new Telepoint("anchor", Telepoint.Type.ANCHOR, location.getWorld(), location);
+        if (this.anchor != null && this.anchor.getTelepoint().getSafeLocation().equals(telepoint.getSafeLocation())) {
+            // Anchor already clicked on
+            return;
+        }
+        this.anchor = new AnchorPoint(telepoint);
+        this.player.sendMessage(Telepoint.getTitle(location, "Respawn Anchor") + " location saved!");
+        this.sendMessage(String.format("You can use %s/anchor%s to teleport to this %s%s.", PURPLE, RESET, telepoint.getTitle(), RESET));
+        Teleport.smoke(this.player.getLocation(), Color.PURPLE);
     }
 
     public void testHome() {
         if (this.home == null || this.home.getSafeLocation() == null) {
             this.player.sendMessage("No home found...");
         }
-        Teleport.particle(this.home.getSafeLocation(), Color.TEAL);
+        Teleport.particle(this.home.getSafeLocation());
+    }
+
+    public static String capitalise(String string) {
+        return Character.toTitleCase(string.charAt(0)) + string.substring(1);
     }
 }
