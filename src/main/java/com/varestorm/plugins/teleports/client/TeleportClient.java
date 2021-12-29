@@ -153,7 +153,7 @@ public class TeleportClient {
             this.setCooldown();
         }
         if (name.equals("anchor")) {
-            if (!this.anchor.hasCharges()) {
+            if (this.anchor.hasNoCharges()) {
                 this.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges... Teleporting to your anchor is not possible.", PURPLE, RESET));
                 return;
             }
@@ -165,6 +165,9 @@ public class TeleportClient {
             return;
         }
         this.removeEnderPearl();
+        if (this.anchor.hasNoCharges()) {
+            this.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges... Teleporting to your anchor is not possible.", PURPLE, RESET));
+        }
     }
 
     public void toBack() {
@@ -453,7 +456,31 @@ public class TeleportClient {
         this.anchor = new AnchorPoint(telepoint);
         this.player.sendMessage(Telepoint.getTitle(location, "Respawn Anchor") + " location saved!");
         this.sendMessage(String.format("You can use %s/anchor%s to teleport to this %s%s.", PURPLE, RESET, telepoint.getTitle(), RESET));
-        Teleport.smoke(telepoint.getSafeLocation(), Color.PURPLE);
+        Location a = telepoint.getSafeLocation();
+        a.setY(a.getBlockY() - 1);
+        int charges = this.anchor.getCharges();
+        int count = (charges * 100) + 1;
+        Teleport.particle(a, count);
+        Color color = Color.PURPLE;
+        switch (charges) {
+            case 0:
+                color = Color.fromRGB(60, 0, 172);
+                break;
+            case 1:
+            case 2:
+                color = Color.fromRGB(87, 6, 195);
+                break;
+            case 3:
+            case 4:
+                color = Color.fromRGB(139, 45, 220);
+        }
+
+        Teleport.smoke(telepoint.getSafeLocation(), color, true, count);
+        World world = location.getWorld();
+        if (world == null) {
+            return;
+        }
+        world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 1, 1);
     }
 
     public void testHome() {

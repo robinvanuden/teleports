@@ -46,10 +46,13 @@ public class Teleport {
     }
 
     public static void smoke(Location location, Color primary, boolean low) {
+        smoke(location, primary, low, 5);
+    }
+
+    public static void smoke(Location location, Color primary, boolean low, int count) {
         if (location == null) {
             return;
         }
-        int count = 5;
         World world = location.getWorld();
         if (world == null) {
             return;
@@ -83,11 +86,15 @@ public class Teleport {
     }
 
     public static void particle(Location location) {
+        particle(location, 120);
+    }
+
+    public static void particle(Location location, int count) {
         if (location.getWorld() == null) {
             return;
         }
         World world = location.getWorld();
-        Application.runAsync(() -> world.spawnParticle(Particle.ENCHANTMENT_TABLE, location, 120));
+        Application.runAsync(() -> world.spawnParticle(Particle.ENCHANTMENT_TABLE, location, count));
     }
 
     private static Particle.DustOptions randomOption(Color primary) {
