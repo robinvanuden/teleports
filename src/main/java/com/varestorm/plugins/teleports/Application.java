@@ -79,9 +79,7 @@ public final class Application extends JavaPlugin {
     }
 
     public void setClient(Player player) {
-        if (!this.clients.containsKey(player.getUniqueId())) {
-            this.clients.put(player.getUniqueId(), new TeleportClient(player, this));
-        }
+        this.clients.put(player.getUniqueId(), new TeleportClient(player, this));
     }
 
     public boolean saveFile(Player player, JsonObject object) {

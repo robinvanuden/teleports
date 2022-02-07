@@ -62,7 +62,6 @@ public class PlayerListener implements Listener {
         if (!material.equals(Material.RESPAWN_ANCHOR)) {
             return;
         }
-        System.out.println("Click");
         Player player = event.getPlayer();
         TeleportClient client = this.application.getClient(player);
         client.setAnchor(block.getLocation());
@@ -79,18 +78,21 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onBreak(BlockBreakEvent event) {
-        Player player = event.getPlayer();
         Block block = event.getBlock();
-        if (block.getBlockData() instanceof Bed) {
-            Bed bed = (Bed) block.getBlockData();
-            if (!bed.getPart().equals(Bed.Part.HEAD)) {
-                // Switch to top if bottom half is broken
-                block = block.getRelative(bed.getFacing());
+        Material material = block.getType();
+        if (material.name().endsWith("_BED") && material.equals(Material.RESPAWN_ANCHOR)) {
+            Player player = event.getPlayer();
+            if (block.getBlockData() instanceof Bed) {
+                Bed bed = (Bed) block.getBlockData();
+                if (!bed.getPart().equals(Bed.Part.HEAD)) {
+                    // Switch to top if bottom half is broken
+                    block = block.getRelative(bed.getFacing());
+                }
+                this.alertBedBroken(block, player);
             }
-            this.alertBedBroken(block, player);
-        }
-        if (block.getBlockData() instanceof RespawnAnchor) {
-            this.alertAnchorBroken(block, player);
+            if (block.getBlockData() instanceof RespawnAnchor) {
+                this.alertAnchorBroken(block, player);
+            }
         }
     }
 

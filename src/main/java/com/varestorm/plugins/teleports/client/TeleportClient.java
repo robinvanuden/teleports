@@ -13,8 +13,6 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -34,7 +32,6 @@ public class TeleportClient {
     protected AnchorPoint anchor;
     protected final Map<String, Telepoint> list;
     protected final List<UUID> requests;
-    protected long anchor_cooldown = 0, cross_world_cooldown = 0;
     private final TeleportFile file;
     private final BossBar bar;
     private boolean isTeleporting, hasCooldown;
@@ -125,8 +122,8 @@ public class TeleportClient {
                 this.sendMessage("Teleport doesn't exist.");
                 return;
         }
-        if (this.hasNoEnderPearls()) {
-            this.sendMessage(String.format("You need %sender pearls%s to teleport!", AQUA, RESET));
+        if (this.anchor.hasNoCharges() && name.equals("anchor")) {
+            this.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges... Teleporting to your anchor is not possible.", PURPLE, RESET));
             return;
         }
         if (telepoint == null) {
@@ -164,8 +161,7 @@ public class TeleportClient {
             this.sendMessage(String.format("Can't teleport you to %s", telepoint.getTitle().toLowerCase()));
             return;
         }
-        this.removeEnderPearl();
-        if (this.anchor.hasNoCharges()) {
+        if (this.anchor.hasNoCharges() && name.equals("anchor")) {
             this.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges... Teleporting to your anchor is not possible.", PURPLE, RESET));
         }
     }
@@ -194,10 +190,6 @@ public class TeleportClient {
         }
         if (this.hasCooldown) {
             this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
-            return;
-        }
-        if (this.hasNoEnderPearls()) {
-            this.sendMessage(String.format("You need %sEnder pearls%s to teleport!", AQUA, RESET));
             return;
         }
         Telepoint telepoint = this.list.get(name);
@@ -379,29 +371,8 @@ public class TeleportClient {
         return new ArrayList<>(this.list.keySet());
     }
 
-    public Application getApplication() {
-        return this.application;
-    }
-
     public Player getPlayer() {
         return this.player;
-    }
-
-    public boolean hasNoEnderPearls() {
-        PlayerInventory inventory = this.player.getInventory();
-        return !inventory.contains(Material.ENDER_PEARL);
-    }
-
-    public void removeEnderPearl() {
-        ItemStack enderPearl = this.getEnderPearls();
-        if (enderPearl != null) {
-            enderPearl.setAmount(enderPearl.getAmount() - 1);
-        }
-    }
-
-    protected ItemStack getEnderPearls() {
-        int slot = this.player.getInventory().first(Material.ENDER_PEARL);
-        return this.player.getInventory().getItem(slot);
     }
 
     private void sendMessage(String message) {
@@ -418,6 +389,7 @@ public class TeleportClient {
         if (!this.file.saveTeleports(this.player, telepoints)) {
             LOGGER.warning(String.format("Telepoints of %s couldn't be saved!", this.player.getName()));
         }
+        LOGGER.info(String.format("Telepoints of %s saved!", this.player.getName()));
     }
 
     public void setBack(Location location) {
@@ -512,5 +484,25 @@ public class TeleportClient {
             return true;
         }
         return false;
+    }
+
+    public List<UUID> getRequests() {
+        return this.requests;
+    }
+
+    public void addRequest(UUID uuid) {
+        this.requests.add(uuid);
+    }
+
+    public void removeRequest(UUID uuid) {
+        this.requests.remove(uuid);
+    }
+
+    public boolean hasRequests() {
+        return this.requests.size() > 0;
+    }
+
+    public boolean hasRequest(UUID uuid) {
+        return this.requests.contains(uuid);
     }
 }

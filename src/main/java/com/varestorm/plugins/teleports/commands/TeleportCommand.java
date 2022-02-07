@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -31,13 +32,18 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player)) {
             sender.sendMessage("Only players can teleport!");
             return true;
         }
         Player player = (Player) sender;
         TeleportClient client = this.application.getClient(player.getUniqueId());
+        if (client == null) {
+            System.out.println("TeleportClient is null");
+            sender.sendMessage(RED + "Something went wrong!");
+            return true;
+        }
         if (args.length > 0) {
             if ("test".equals(args[0])) {
                 player.sendMessage("Testing!");
@@ -69,7 +75,7 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         List<String> suggestions = new ArrayList<>();
         List<String> commands = new ArrayList<>();
         if (sender instanceof Player) {

@@ -1,7 +1,7 @@
 name: Teleports
-version: 1.1.2
+version: 1.1.4
 main: com.varestorm.plugins.teleports.Application
-api-version: 1.17
+api-version: 1.18
 authors: [Rob_Varestorm]
 description: Teleport plugin
 prefix: TP

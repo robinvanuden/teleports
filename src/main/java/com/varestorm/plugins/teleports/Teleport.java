@@ -27,13 +27,8 @@ public class Teleport {
     }
 
     public static boolean to(Telepoint telepoint, TeleportClient client) {
-        if (instant(telepoint, client)) {
-            client.removeEnderPearl();
-            return true;
-        }
-        return false;
+        return instant(telepoint, client);
     }
-
 
     public static void smoke(Location location) {
         Color ender = Color.fromRGB(11, 77, 66);
