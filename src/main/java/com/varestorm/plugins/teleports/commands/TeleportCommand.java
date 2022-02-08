@@ -18,10 +18,6 @@ import java.util.*;
 public class TeleportCommand implements CommandExecutor, TabCompleter, Listener {
 
     static final ChatColor RED = ChatColor.RED;
-    static final ChatColor GREEN = ChatColor.GREEN;
-    static final ChatColor BLUE = ChatColor.BLUE;
-    static final ChatColor BOLD = ChatColor.BOLD;
-    static final ChatColor RESET = ChatColor.RESET;
 
     final Application application;
     public static Map<UUID, Integer> areTeleporting;
@@ -45,8 +41,12 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
             return true;
         }
         if (args.length > 0) {
-            if ("test".equals(args[0])) {
+            if (args[0].equals("test")) {
                 player.sendMessage("Testing!");
+                return true;
+            }
+            if (args[0].equals("list")) {
+                return client.getList();
             }
             if (args.length > 1) {
                 switch (args[0]) {

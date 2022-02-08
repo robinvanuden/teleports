@@ -46,7 +46,11 @@ public class Telepoint {
     }
 
     public String getTitle() {
-        return getTitle(this.getEnvironment(), this.name);
+        return this.getTitle(false);
+    }
+
+    public String getTitle(boolean bold) {
+        return getTitle(this.getEnvironment(), this.name, bold);
     }
 
     public static String getTitle(Location location, String name) {
@@ -61,15 +65,51 @@ public class Telepoint {
     }
 
     public static String getTitle(World.Environment environment, String name) {
+        return getTitle(environment, name, false);
+    }
+
+    public static String getTitle(World.Environment environment, String name, boolean bold) {
         switch (environment) {
             case NETHER:
-                return ChatColor.GOLD + name + ChatColor.RESET;
+                return String.format("%s%s%s%s", ChatColor.GOLD, bold ? ChatColor.BOLD : "", name, ChatColor.RESET);
             case THE_END:
-                return ChatColor.DARK_PURPLE + name + ChatColor.RESET;
+                return String.format("%s%s%s%s", ChatColor.DARK_PURPLE, bold ? ChatColor.BOLD : "", name, ChatColor.RESET);
             default:
             case NORMAL:
-                return ChatColor.BLUE + name + ChatColor.RESET;
+                return String.format("%s%s%s%s", ChatColor.BLUE, bold ? ChatColor.BOLD : "", name, ChatColor.RESET);
         }
+    }
+
+    public static String getWorldName(World world) {
+        return getWorldName(world, false);
+    }
+
+    public static String getWorldName(World world, boolean bold) {
+        return getWorldName(world.getEnvironment(), bold);
+    }
+
+    public static String getWorldName(World.Environment environment) {
+        return getWorldName(environment, false);
+    }
+
+    public static String getWorldName(World.Environment environment, boolean bold) {
+        String world;
+        switch (environment) {
+            case NORMAL:
+                world = "the overworld";
+                break;
+            case NETHER:
+                world = "the Nether";
+                break;
+            case THE_END:
+                world = "the End";
+                break;
+            default:
+            case CUSTOM:
+                world = "a different place";
+                break;
+        }
+        return Telepoint.getTitle(environment, world, bold);
     }
 
     public Type getType() {

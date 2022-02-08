@@ -1,5 +1,6 @@
 package com.varestorm.plugins.teleports.teleporting;
 
+import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.Teleport;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -26,6 +27,10 @@ public class AnchorPoint {
         return null;
     }
 
+    public boolean isBroken() {
+        return this.getAnchor() == null;
+    }
+
     public Telepoint getTelepoint() {
         return this.telepoint;
     }
@@ -50,14 +55,15 @@ public class AnchorPoint {
         }
         Teleport.smoke(this.telepoint.getSafeLocation(), Color.fromRGB(255, 170, 0));
         RespawnAnchor anchor = ((RespawnAnchor) block.getBlockData());
-        anchor.setCharges(anchor.getCharges() - 1);
+        int newCharge = anchor.getCharges() - 1;
+        anchor.setCharges(newCharge);
         block.setBlockData(anchor);
         block.getState().update(true);
         World world = location.getWorld();
         if (world == null) {
             return;
         }
-        world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1, 1);
+        Application.runLaterAsync(() -> world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1, 1), 10);
     }
 
 }

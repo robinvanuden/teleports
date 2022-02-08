@@ -80,7 +80,7 @@ public class PlayerListener implements Listener {
     public void onBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Material material = block.getType();
-        if (material.name().endsWith("_BED") && material.equals(Material.RESPAWN_ANCHOR)) {
+        if (material.name().endsWith("_BED") || material.equals(Material.RESPAWN_ANCHOR)) {
             Player player = event.getPlayer();
             if (block.getBlockData() instanceof Bed) {
                 Bed bed = (Bed) block.getBlockData();

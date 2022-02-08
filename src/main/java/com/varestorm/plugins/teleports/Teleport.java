@@ -11,6 +11,7 @@ import java.util.Random;
 
 public class Teleport {
 
+
     public static boolean instant(Telepoint telepoint, TeleportClient client) {
         Player player = client.getPlayer();
         player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
@@ -31,9 +32,8 @@ public class Teleport {
     }
 
     public static void smoke(Location location) {
-        Color ender = Color.fromRGB(11, 77, 66);
         Color purple = Color.fromRGB(138, 43, 226);
-        smoke(location, ender, false);
+        smoke(location, purple, false);
     }
 
     public static void smoke(Location location, Color primary) {

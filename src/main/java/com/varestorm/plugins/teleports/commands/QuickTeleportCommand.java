@@ -1,11 +1,16 @@
 package com.varestorm.plugins.teleports.commands;
 
 import com.varestorm.plugins.teleports.Application;
+import com.varestorm.plugins.teleports.Teleport;
 import com.varestorm.plugins.teleports.client.TeleportClient;
+import com.varestorm.plugins.teleports.teleporting.Telepoint;
+import org.bukkit.ChatColor;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class QuickTeleportCommand implements CommandExecutor {
 
@@ -16,7 +21,7 @@ public class QuickTeleportCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
         if (!(sender instanceof Player)) {
             sender.sendMessage("Only players can teleport!");
             return true;
@@ -39,11 +44,17 @@ public class QuickTeleportCommand implements CommandExecutor {
                 client.testHome();
                 return true;
             case "spawn":
-                player.sendMessage("This command is temporarily not available...");
-                return true;
+                return this.doTeleportSpawn(player, client);
             default:
                 return false;
         }
+    }
+    private boolean doTeleportSpawn(Player player, TeleportClient client) {
+        World world = player.getWorld();
+        Telepoint spawn = new Telepoint("Spawn", Telepoint.Type.CUSTOM, world, world.getSpawnLocation());
+        Teleport.instant(spawn, client);
+        player.sendTitle((ChatColor.BOLD + Telepoint.getWorldName(world, true)).toUpperCase(), String.format("You've arrived at %s", spawn.getTitle(false)), 0, 40, 10);
+        return true;
     }
 
 
