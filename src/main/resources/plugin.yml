@@ -1,5 +1,5 @@
 name: Teleports
-version: 1.1.4
+version: 1.1.5
 main: com.varestorm.plugins.teleports.Application
 api-version: 1.18
 authors: [Rob_Varestorm]
@@ -21,11 +21,21 @@ commands:
     usage: /sethome
   testhome:
     usage: /testhome
+    permission: op
+  testbed:
+    usage: /testbed
+    permission: op
+  testanchor:
+    usage: /testanchor
+    permission: op
   tp:
     usage: /tp
-    aliases: [teleport]
+    aliases: [ teleport ]
     description: /tp [action] [name]
   tpp:
     usage: /tpp
-    aliases: [teleportplayer, tpa]
+    aliases: [ teleportplayer, tpa ]
     description: /tpp [action] [player]
+permissions:
+  op:
+    default: op

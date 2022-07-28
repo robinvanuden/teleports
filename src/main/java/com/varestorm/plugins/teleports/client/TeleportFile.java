@@ -63,7 +63,7 @@ public class TeleportFile {
             JsonArray array = element.getAsJsonArray();
             for (int i = 0; i < array.size(); i++) {
                 String obj = array.get(i).getAsString();
-                Telepoint telepoint = Telepoint.fromJson(obj);
+                Telepoint telepoint = Telepoint.fromString(obj, this.application);
                 if (telepoint != null) {
                     points.add(telepoint);
                 }

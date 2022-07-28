@@ -1,69 +1,96 @@
 package com.varestorm.plugins.teleports.teleporting;
 
-import com.varestorm.plugins.teleports.Application;
-import com.varestorm.plugins.teleports.Teleport;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import com.varestorm.plugins.teleports.ParticleManager;
+import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.RespawnAnchor;
-import org.bukkit.entity.Player;
 
 public class AnchorPoint {
 
-    Telepoint telepoint;
-    Player player;
+   Telepoint telepoint;
 
-    public AnchorPoint(Telepoint telepoint) {
-        this.telepoint = telepoint;
-    }
+   public AnchorPoint(Telepoint telepoint) {
+      this.telepoint = telepoint;
+   }
 
-    private RespawnAnchor getAnchor() {
-        Block block = this.telepoint.getLocation().getBlock();
-        if (block.getBlockData() instanceof RespawnAnchor) {
-            return (RespawnAnchor) block.getBlockData();
-        }
-        return null;
-    }
+   private RespawnAnchor getAnchor() {
+      Block block = this.getLocation().getBlock();
+      BlockData data = block.getBlockData();
+      if (!(data instanceof RespawnAnchor)) {
+         return null;
+      }
+      return (RespawnAnchor) data;
+   }
 
-    public boolean isBroken() {
-        return this.getAnchor() == null;
-    }
+   public boolean isBroken() {
+      return this.getAnchor() == null;
+   }
 
-    public Telepoint getTelepoint() {
-        return this.telepoint;
-    }
+   public Telepoint getTelepoint() {
+      return this.telepoint;
+   }
 
-    public int getCharges() {
-        RespawnAnchor anchor = this.getAnchor();
-        if (anchor == null) {
-            return 0;
-        }
-        return anchor.getCharges();
-    }
+   public Location getLocation() {
+      return this.getTelepoint().getLocation().clone();
+   }
 
-    public boolean hasNoCharges() {
-        return this.getCharges() == 0;
-    }
+   public int getCharges() {
+      RespawnAnchor anchor = this.getAnchor();
+      if (anchor == null) {
+         return 0;
+      }
+      return anchor.getCharges();
+   }
 
-    public void removeCharge() {
-        Location location = this.telepoint.getLocation();
-        Block block = location.getBlock();
-        if (!(block.getBlockData() instanceof RespawnAnchor)) {
-            return;
-        }
-        Teleport.smoke(this.telepoint.getSafeLocation(), Color.fromRGB(255, 170, 0));
-        RespawnAnchor anchor = ((RespawnAnchor) block.getBlockData());
-        int newCharge = anchor.getCharges() - 1;
-        anchor.setCharges(newCharge);
-        block.setBlockData(anchor);
-        block.getState().update(true);
-        World world = location.getWorld();
-        if (world == null) {
-            return;
-        }
-        Application.runLaterAsync(() -> world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1, 1), 10);
-    }
+   public boolean hasNoCharges() {
+      return this.getCharges() == 0;
+   }
+
+   private Block checkForAnchor() {
+      if (this.getAnchor() == null) {
+         return null;
+      }
+      return this.getLocation().getBlock();
+   }
+
+   public void removeCharge() {
+      Block block = this.checkForAnchor();
+      RespawnAnchor anchor = this.getAnchor();
+      if (block == null || anchor == null) {
+         return;
+      }
+      int newCharge = anchor.getCharges() - 1;
+      anchor.setCharges(newCharge);
+      block.setBlockData(anchor);
+      block.getState().update(true);
+      block.getWorld().playSound(block.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1, 1);
+   }
+
+   public void resetCharges() {
+      Block block = this.checkForAnchor();
+      RespawnAnchor anchor = this.getAnchor();
+      if (block == null || anchor == null) {
+         return;
+      }
+      anchor.setCharges(4);
+      block.setBlockData(anchor);
+      block.getState().update(true);
+      ParticleManager.highlightBlock(block, Color.YELLOW);
+      block.getWorld().playSound(block.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1, 1);
+   }
+
+   public void newAnchorEffect() {
+      int count = (this.getCharges() * 100) + 1;
+      Location location = this.getLocation();
+      World world = location.getWorld();
+      if (world == null) {
+         return;
+      }
+      Block block = world.getBlockAt(location).getRelative(BlockFace.UP);
+      Location particleLoc = block.getLocation().clone();
+      world.spawnParticle(Particle.ENCHANTMENT_TABLE, particleLoc.add(0.5, 1, 0.5), count);
+   }
 
 }

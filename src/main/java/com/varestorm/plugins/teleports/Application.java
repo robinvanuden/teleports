@@ -1,21 +1,20 @@
 package com.varestorm.plugins.teleports;
 
-import com.google.gson.JsonObject;
 import com.varestorm.plugins.teleports.client.TeleportClient;
 import com.varestorm.plugins.teleports.commands.QuickTeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportCommand;
 import com.varestorm.plugins.teleports.commands.TeleportPlayerCommand;
 import com.varestorm.plugins.teleports.listener.PlayerListener;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,121 +22,93 @@ import java.util.UUID;
 
 public final class Application extends JavaPlugin {
 
-    private static Application application;
-    private Map<UUID, TeleportClient> clients;
+   private Map<UUID, TeleportClient> clients;
 
-    @Override
-    public void onEnable() {
-        // Plugin startup logic
-        this.clients = new HashMap<>();
-        application = this;
+   private BukkitScheduler scheduler = Bukkit.getScheduler();
 
-        this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        QuickTeleportCommand quickTeleportCommand = new QuickTeleportCommand(this);
-        this.registerCommand("spawn", quickTeleportCommand);
-        this.registerCommand("bed", quickTeleportCommand);
-        this.registerCommand("back", quickTeleportCommand);
-        this.registerCommand("anchor", quickTeleportCommand);
-        this.registerCommand("home", quickTeleportCommand);
-        this.registerCommand("sethome", quickTeleportCommand);
-        this.registerCommand("testhome", quickTeleportCommand);
+   @Override
+   public void onEnable() {
+      // Plugin startup logic
+      this.clients = new HashMap<>();
+      this.scheduler = this.getServer().getScheduler();
 
-        TeleportCommand teleportCommand = new TeleportCommand(this);
-        this.registerCommand("tp", teleportCommand, teleportCommand);
-        this.getServer().getPluginManager().registerEvents(teleportCommand, this);
+      this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+      QuickTeleportCommand quickTeleportCommand = new QuickTeleportCommand(this);
+      this.registerCommand("spawn", quickTeleportCommand);
+      this.registerCommand("bed", quickTeleportCommand);
+      this.registerCommand("back", quickTeleportCommand);
+      this.registerCommand("anchor", quickTeleportCommand);
+      this.registerCommand("home", quickTeleportCommand);
+      this.registerCommand("sethome", quickTeleportCommand);
+      this.registerCommand("testhome", quickTeleportCommand);
+      this.registerCommand("testbed", quickTeleportCommand);
+      this.registerCommand("testanchor", quickTeleportCommand);
 
-        TeleportPlayerCommand teleportPlayerCommand = new TeleportPlayerCommand(this);
-        this.registerCommand("tpp", teleportPlayerCommand, teleportPlayerCommand);
+      TeleportCommand teleportCommand = new TeleportCommand(this);
+      this.registerCommand("tp", teleportCommand, teleportCommand);
+      this.getServer().getPluginManager().registerEvents(teleportCommand, this);
 
-        for (Player player : this.getServer().getOnlinePlayers()) {
-            this.setClient(player);
-        }
-    }
+      TeleportPlayerCommand teleportPlayerCommand = new TeleportPlayerCommand(this);
+      this.registerCommand("tpp", teleportPlayerCommand, teleportPlayerCommand);
 
-    @Override
-    public void onDisable() {
-        // Plugin shutdown logic
-        for (TeleportClient client : this.clients.values()) {
-            client.saveTelepoints();
-        }
-    }
+      for (Player player : this.getServer().getOnlinePlayers()) {
+         this.setClient(player);
+      }
+   }
 
-    private void registerCommand(String name, CommandExecutor executor) {
-        this.registerCommand(name, executor, null);
-    }
+   @Override
+   public void onDisable() {
+      // Plugin shutdown logic
+      for (TeleportClient client : this.clients.values()) {
+         client.saveTelepoints();
+      }
+   }
 
-    private void registerCommand(String name, CommandExecutor executor, TabCompleter completer) {
-        PluginCommand command = this.getServer().getPluginCommand(name);
-        if (command != null) {
-            command.setExecutor(executor);
-            if (completer != null) {
-                command.setTabCompleter(completer);
-            }
-        } else {
-            this.getLogger().warning(String.format("Failed registering command: /%s", name));
-        }
-    }
+   private void registerCommand(String name, CommandExecutor executor) {
+      this.registerCommand(name, executor, null);
+   }
 
-    public void setClient(Player player) {
-        this.clients.put(player.getUniqueId(), new TeleportClient(player, this));
-    }
+   private void registerCommand(String name, CommandExecutor executor, TabCompleter completer) {
+      PluginCommand command = this.getServer().getPluginCommand(name);
+      if (command != null) {
+         command.setExecutor(executor);
+         if (completer != null) {
+            command.setTabCompleter(completer);
+         }
+      } else {
+         this.getLogger().warning(String.format("Failed registering command: /%s", name));
+      }
+   }
 
-    public boolean saveFile(Player player, JsonObject object) {
-        File file = this.getDataFolder().getParentFile();
-        File folder = new File(file.getAbsolutePath() + "/teleport");
-        if (!folder.isDirectory() && !folder.mkdirs()) {
-            System.out.println("Couldn't save teleport directory");
-            return true;
-        }
-        File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
-        if (!json_file.exists()) {
-            try {
-                if (!json_file.createNewFile()) {
-                    System.out.printf("Could save player file of %s at %s%n", player.getUniqueId(), json_file.getAbsolutePath());
-                    return true;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                return true;
-            }
-        }
-        try {
-            String content = object.toString();
-            FileWriter writer = new FileWriter(json_file);
-//            System.out.println(content);
-            writer.write(content);
-            writer.close();
-            return false;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return true;
-        }
-    }
+   public void setClient(Player player) {
+      this.clients.put(player.getUniqueId(), new TeleportClient(player, this));
+   }
 
-    public static World getWorld(String name) {
-        return application.getServer().getWorld(name);
-    }
+   public World getWorld(String name) {
+      return this.getServer().getWorld(name);
+   }
 
-    public static void runAsync(Runnable runnable) {
-        application.getServer().getScheduler().runTaskAsynchronously(application, runnable);
-    }
+   public void runAsync(Runnable runnable) {
+      this.scheduler.runTaskAsynchronously(this, runnable);
+   }
 
-    public static void runLaterAsync(Runnable runnable, long delayTicks) {
-        application.getServer().getScheduler().runTaskLaterAsynchronously(application, runnable, delayTicks);
-    }
+   public BukkitTask runLaterAsync(Runnable runnable, long delayTicks) {
+      return this.scheduler.runTaskLaterAsynchronously(this, runnable, delayTicks);
+   }
 
-    public static void runLater(Runnable runnable, long delayTicks) {
-        application.getServer().getScheduler().runTaskLater(application, runnable, delayTicks);
-    }
+   public BukkitTask runLater(Runnable runnable, long delayTicks) {
+      return this.scheduler.runTaskLater(this, runnable, delayTicks);
+   }
 
-    public TeleportClient getClient(UUID uuid) {
-        return this.clients.get(uuid);
-    }
-    public TeleportClient getClient(Player player) {
-        return this.getClient(player.getUniqueId());
-    }
+   public TeleportClient getClient(UUID uuid) {
+      return this.clients.get(uuid);
+   }
 
-    public Collection<TeleportClient> getClients() {
-        return this.clients.values();
-    }
+   public TeleportClient getClient(Player player) {
+      return this.getClient(player.getUniqueId());
+   }
+
+   public Collection<TeleportClient> getClients() {
+      return this.clients.values();
+   }
 }
