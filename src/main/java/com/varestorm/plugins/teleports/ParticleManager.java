@@ -8,13 +8,7 @@ import org.bukkit.block.Block;
 
 import java.util.Random;
 
-public class ParticleManager {
-
-   Application application;
-
-   public ParticleManager(Application application) {
-      this.application = application;
-   }
+public record ParticleManager(Application application) {
 
    public static void highlightBlock(Location location, Color color) {
       if (location == null) {
@@ -39,7 +33,7 @@ public class ParticleManager {
                boolean b = (y == minY || y == maxY);
                boolean c = (z == minZ || z == maxZ);
                if (a ? b || c : b && c) {
-                  world.spawnParticle(Particle.REDSTONE, x, y, z, 2, new Particle.DustOptions(color, 1));
+                  world.spawnParticle(Particle.REDSTONE, x, y, z, 1, new Particle.DustOptions(color, 1));
                }
             }
          }

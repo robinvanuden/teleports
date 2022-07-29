@@ -15,11 +15,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public class TeleportCommand implements CommandExecutor, TabCompleter, Listener {
+public record TeleportCommand(Application application) implements CommandExecutor, TabCompleter, Listener {
 
    static final ChatColor RED = ChatColor.RED;
 
-   final Application application;
    public static Map<UUID, Integer> areTeleporting;
 
    public TeleportCommand(Application application) {
@@ -29,11 +28,10 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
 
    @Override
    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-      if (!(sender instanceof Player)) {
+      if (!(sender instanceof Player player)) {
          sender.sendMessage("Only players can teleport!");
          return true;
       }
-      Player player = (Player) sender;
       TeleportClient client = this.application.getClient(player.getUniqueId());
       if (client == null) {
          System.out.println("TeleportClient is null");
@@ -42,12 +40,14 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
       }
       if (args.length > 0) {
          if (args[0].equals("list")) {
-            return client.getList();
+            client.getList();
+            return true;
          }
          if (args.length > 1) {
             switch (args[0]) {
                case "set":
-                  return client.set(args[1]);
+                  client.set(args[1]);
+                  return true;
                case "to":
                   client.to(args[1]);
                   return true;
@@ -72,7 +72,7 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
    public void onPlayerMoved(PlayerMoveEvent event) {
       TeleportClient client = this.application.getClient(event.getPlayer().getUniqueId());
       if (client != null) {
-         client.cancel();
+         client.getManager().cancel();
       }
    }
 
@@ -80,10 +80,9 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
       List<String> suggestions = new ArrayList<>();
       List<String> commands = new ArrayList<>();
-      if (!(sender instanceof Player)) {
+      if (!(sender instanceof Player player)) {
          return suggestions;
       }
-      Player player = (Player) sender;
       commands.add("to");
       commands.add("set");
       commands.add("remove");
@@ -106,9 +105,7 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
       }
       if (args.length == 2) {
          switch (args[0]) {
-            case "test":
-            case "to":
-            case "remove":
+            case "test", "to", "remove" -> {
                List<String> names = this.application.getClient(player.getUniqueId()).names();
                if (args[1].equals("")) {
                   suggestions.addAll(names);
@@ -119,7 +116,7 @@ public class TeleportCommand implements CommandExecutor, TabCompleter, Listener 
                      }
                   }
                }
-               break;
+            }
          }
          return suggestions;
       }

@@ -7,13 +7,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.RespawnAnchor;
 
-public class AnchorPoint {
-
-   Telepoint telepoint;
-
-   public AnchorPoint(Telepoint telepoint) {
-      this.telepoint = telepoint;
-   }
+public record AnchorPoint(Telepoint telepoint) {
 
    private RespawnAnchor getAnchor() {
       Block block = this.getLocation().getBlock();
@@ -33,7 +27,7 @@ public class AnchorPoint {
    }
 
    public Location getLocation() {
-      return this.getTelepoint().getLocation().clone();
+      return this.getTelepoint().getLocation();
    }
 
    public int getCharges() {
@@ -42,6 +36,14 @@ public class AnchorPoint {
          return 0;
       }
       return anchor.getCharges();
+   }
+
+   public int getMaximumCharges() {
+      RespawnAnchor anchor = this.getAnchor();
+      if (anchor == null) {
+         return 0;
+      }
+      return anchor.getMaximumCharges();
    }
 
    public boolean hasNoCharges() {
@@ -74,7 +76,7 @@ public class AnchorPoint {
       if (block == null || anchor == null) {
          return;
       }
-      anchor.setCharges(4);
+      anchor.setCharges(anchor.getMaximumCharges());
       block.setBlockData(anchor);
       block.getState().update(true);
       ParticleManager.highlightBlock(block, Color.YELLOW);

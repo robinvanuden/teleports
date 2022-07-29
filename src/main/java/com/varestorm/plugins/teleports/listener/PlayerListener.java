@@ -13,22 +13,17 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerBedEnterEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 
 import java.util.logging.Logger;
 
 
-public class PlayerListener implements Listener {
+public record PlayerListener(Application application) implements Listener {
 
-   final Application application;
    static Logger LOGGER;
 
-   public PlayerListener(Application application) {
+   public PlayerListener {
       LOGGER = application.getLogger();
-      this.application = application;
    }
 
    @EventHandler
@@ -51,36 +46,26 @@ public class PlayerListener implements Listener {
    }
 
    @EventHandler
+   public void onPlayerTeleport(PlayerTeleportEvent event) {
+      Player player = event.getPlayer();
+      TeleportClient client = this.application.getClient(player);
+      client.setBack(player.getLocation());
+   }
+
+   @EventHandler
    public void onDamagePlayer(EntityDamageEvent event) {
-      if (!(event.getEntity() instanceof Player)) {
+      if (!(event.getEntity() instanceof Player player)) {
          return;
       }
-      Player player = (Player) event.getEntity();
-      boolean valid = false;
-      switch (event.getCause()) {
-         case DROWNING:
-         case FIRE:
-         case WITHER:
-         case SUFFOCATION:
-         case FIRE_TICK:
-         case BLOCK_EXPLOSION:
-         case VOID:
-         case CRAMMING:
-         case CUSTOM:
-         case FLY_INTO_WALL:
-         case LAVA:
-         case ENTITY_EXPLOSION:
-            valid = true;
-            break;
-      }
+      boolean valid = switch (event.getCause()) {
+         case DROWNING, FIRE, WITHER, SUFFOCATION, FIRE_TICK, BLOCK_EXPLOSION, VOID, CRAMMING, CUSTOM, FLY_INTO_WALL, LAVA, ENTITY_EXPLOSION -> true;
+         default -> false;
+      };
       if (!valid) {
          return;
       }
       TeleportClient client = this.application.getClient(player);
-      if (!client.isCoolingDown()) {
-         return;
-      }
-      client.resetCooldown();
+      client.getManager().resetCooldown();
    }
 
    @EventHandler
@@ -114,35 +99,33 @@ public class PlayerListener implements Listener {
    public void onBreak(BlockBreakEvent event) {
       Block block = event.getBlock();
       Material material = block.getType();
-      if (material.name().endsWith("_BED") || material.equals(Material.RESPAWN_ANCHOR)) {
-         Player player = event.getPlayer();
-         if (block.getBlockData() instanceof Bed) {
-            Bed bed = (Bed) block.getBlockData();
-            if (!bed.getPart().equals(Bed.Part.HEAD)) {
-               // Switch to top if bottom half is broken
-               block = block.getRelative(bed.getFacing());
-            }
-            this.alertBedBroken(block, player);
-         }
-         if (block.getBlockData() instanceof RespawnAnchor) {
-            this.alertAnchorBroken(block, player);
-         }
+      Player player = event.getPlayer();
+      if (material.equals(Material.RESPAWN_ANCHOR) && block.getBlockData() instanceof RespawnAnchor) {
+         this.alertAnchorBroken(block, player);
+         return;
       }
+      if (!material.name().endsWith("_BED")) {
+         return;
+      }
+      if (!(block.getBlockData() instanceof Bed bed)) {
+         return;
+      }
+      if (!bed.getPart().equals(Bed.Part.HEAD)) {
+         // Switch to top if bottom half is broken
+         block = block.getRelative(bed.getFacing());
+      }
+      this.alertBedBroken(block, player);
    }
 
    private void alertBedBroken(Block block, Player player) {
       for (TeleportClient client : this.application.getClients()) {
-         if (client.brokeBed(block, player)) {
-            return;
-         }
+         client.brokeBed(block, player);
       }
    }
 
    private void alertAnchorBroken(Block block, Player player) {
       for (TeleportClient client : this.application.getClients()) {
-         if (client.brokeAnchor(block, player)) {
-            return;
-         }
+         client.brokeAnchor(block, player);
       }
    }
 }

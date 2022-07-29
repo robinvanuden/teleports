@@ -5,18 +5,10 @@ import com.varestorm.plugins.teleports.ParticleManager;
 import com.varestorm.plugins.teleports.teleporting.AnchorPoint;
 import com.varestorm.plugins.teleports.teleporting.BedPoint;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitScheduler;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -24,43 +16,36 @@ import java.util.logging.Logger;
 public class TeleportClient {
 
    private static Logger LOGGER;
-   static ChatColor BLUE = ChatColor.BLUE;
-   static ChatColor GOLD = ChatColor.GOLD;
-   static ChatColor YELLOW = ChatColor.YELLOW;
-   static ChatColor PURPLE = ChatColor.DARK_PURPLE;
-   static ChatColor RED = ChatColor.RED;
-   static ChatColor GREEN = ChatColor.GREEN;
-   static ChatColor GREY = ChatColor.GRAY;
-   static ChatColor ITALIC = ChatColor.ITALIC;
-   static ChatColor BOLD = ChatColor.BOLD;
-   static ChatColor RESET = ChatColor.RESET;
+   final static ChatColor BLUE = ChatColor.BLUE;
+   final static ChatColor GOLD = ChatColor.GOLD;
+   final static ChatColor YELLOW = ChatColor.YELLOW;
+   final static ChatColor PURPLE = ChatColor.DARK_PURPLE;
+   final static ChatColor RED = ChatColor.RED;
+   final static ChatColor GREEN = ChatColor.GREEN;
+   final static ChatColor GREY = ChatColor.GRAY;
+   final static ChatColor ITALIC = ChatColor.ITALIC;
+   final static ChatColor BOLD = ChatColor.BOLD;
+   final static ChatColor RESET = ChatColor.RESET;
 
    private final Player player;
-   private final Application application;
    private Telepoint home, back;
    private BedPoint bed;
    private AnchorPoint anchor;
    private final Map<String, Telepoint> list;
    private final List<UUID> requests;
    private final TeleportFile file;
-   private final BossBar bar;
-   private boolean isTeleporting, hasCooldown;
-   private final List<BukkitTask> tasks;
    private final ParticleManager particles;
+   private final TeleportManager manager;
 
    public TeleportClient(Player player, Application application) {
       LOGGER = application.getLogger();
-      LOGGER.info(player.getDisplayName() + ".teleports loaded");
-      this.tasks = new ArrayList<>();
+      LOGGER.info(player.getName() + ".teleports loaded");
       this.player = player;
-      this.application = application;
-      this.bar = Bukkit.createBossBar("Recharging teleport particles", BarColor.YELLOW, BarStyle.SOLID);
-      this.isTeleporting = false;
-      this.hasCooldown = false;
       this.list = new HashMap<>();
       this.requests = new ArrayList<>();
       this.file = new TeleportFile(application);
       this.particles = new ParticleManager(application);
+      this.manager = new TeleportManager(player, application, this.particles);
       List<Telepoint> telepoints = this.file.loadTeleports(player);
       if (telepoints != null) {
          for (Telepoint telepoint : telepoints) {
@@ -84,7 +69,11 @@ public class TeleportClient {
       }
    }
 
-   public boolean getList() {
+   public TeleportManager getManager() {
+      return this.manager;
+   }
+
+   public void getList() {
       this.player.sendMessage(String.format("%s%sTeleports", PURPLE, BOLD));
       this.player.sendMessage("------------------------------");
       boolean hasHome = this.home != null;
@@ -106,10 +95,7 @@ public class TeleportClient {
       boolean bar2 = charges > 1;
       boolean bar3 = charges > 2;
       boolean bar4 = charges > 3;
-      String builder = String.format("%s%s", bar1 ? YELLOW : ChatColor.DARK_GRAY, bar1 ? "■" : "-") +
-         String.format("%s%s", bar2 ? YELLOW : ChatColor.DARK_GRAY, bar2 ? "■" : "-") +
-         String.format("%s%s", bar3 ? YELLOW : ChatColor.DARK_GRAY, bar3 ? "■" : "-") +
-         String.format("%s%s", bar4 ? YELLOW : ChatColor.DARK_GRAY, bar4 ? "■" : "-");
+      String builder = String.format("%s%s", bar1 ? YELLOW : ChatColor.DARK_GRAY, bar1 ? "■" : "-") + String.format("%s%s", bar2 ? YELLOW : ChatColor.DARK_GRAY, bar2 ? "■" : "-") + String.format("%s%s", bar3 ? YELLOW : ChatColor.DARK_GRAY, bar3 ? "■" : "-") + String.format("%s%s", bar4 ? YELLOW : ChatColor.DARK_GRAY, bar4 ? "■" : "-");
       this.player.sendMessage(String.format("Anchor: %s%s %s[%s%s]", hasAnchor ? (charges > 0 ? GREEN : GOLD) : RED, hasAnchor ? (charges > 0 ? "set" : "empty") : "not set", GREY, builder, GREY));
       this.player.sendMessage("");
       this.player.sendMessage(String.format("%sTeleport list", PURPLE));
@@ -126,153 +112,38 @@ public class TeleportClient {
       } else {
          this.player.sendMessage(String.format("Your list is empty. Use %s/tp set [name]%s to create a teleport.", PURPLE, RESET));
       }
-      return true;
    }
 
-   public boolean set(String raw) {
+   public void set(String raw) {
       String name = raw.toLowerCase();
-      System.out.println(name);
-      if (!name.matches("^[a-zA-Z]*$")) {
-         this.sendMessage(String.format("%sYou can only use letters in the name!", RED));
-         return true;
-      }
       if (name.isEmpty()) {
          this.sendMessage(String.format("%sPlease enter a valid name!", RED));
-         return true;
+         return;
+      }
+      if (!name.matches("^[a-z]*$")) {
+         this.sendMessage(String.format("%sYou can only use letters in the name!", RED));
+         return;
       }
       Location location = this.player.getLocation();
       Telepoint telepoint = Telepoint.create(name, Telepoint.Type.CUSTOM, location);
       if (this.list.containsKey(name)) {
-         this.list.remove(name);
-         this.list.put(name, telepoint);
+         this.list.put(telepoint.getName(), telepoint);
          ParticleManager.highlightBlock(location, Color.ORANGE);
          this.sendMessage(String.format("Teleport %s%s%s updated!", PURPLE, name, RESET));
-         return true;
+         return;
       }
       if ((this.list.size() + 1) <= 5) {
-         this.list.put(name, telepoint);
+         this.list.put(telepoint.getName(), telepoint);
          ParticleManager.highlightBlock(location, Color.GREEN);
          this.sendMessage(String.format("Teleport %s%s%s set!", PURPLE, name, RESET));
-         return true;
+         return;
       }
-
       this.player.sendMessage(String.format("%sYou've reached the maximum of 5 teleports!", RED));
       this.player.sendMessage(String.format("%sYou can overwrite existing teleports with %s/tp set <name>", ITALIC, PURPLE));
       this.player.sendMessage(String.format("%sor delete teleports with %s/tp remove <name>", ITALIC, RED));
-      return true;
-   }
-
-   public void instant(String name) {
-      if (this.isTeleporting) {
-         this.sendMessage("You are still teleporting, please wait...");
-         return;
-      }
-      if (this.hasCooldown) {
-         this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
-         return;
-      }
-      Telepoint telepoint = null;
-      switch (name) {
-         case "home":
-            telepoint = this.home;
-            break;
-         case "bed":
-            if (this.bed != null) {
-               telepoint = this.bed.getTelepoint();
-            }
-            break;
-         case "anchor":
-            if (this.anchor != null) {
-               telepoint = this.anchor.getTelepoint();
-            }
-            break;
-      }
-      if (telepoint == null) {
-         ChatColor color;
-         switch (name) {
-            case "anchor":
-               color = PURPLE;
-               break;
-            case "bed":
-               color = RED;
-               break;
-            default:
-               color = BLUE;
-               break;
-         }
-         this.sendMessage(String.format("You don't have a %s%s%s yet!", color, name, RESET));
-         return;
-      }
-      if (this.anchor != null && this.anchor.hasNoCharges() && name.equals("anchor")) {
-         this.player.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges...", PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible without charges.", PURPLE, ITALIC, GREY, ITALIC));
-         return;
-      }
-      if (this.anchor != null && this.anchor.isBroken() && name.equals("anchor")) {
-         this.player.sendMessage(String.format("Your %sRespawn Anchor%s is broken...", PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible until you place and charge a new one.", PURPLE, ITALIC, GREY, ITALIC));
-         return;
-      }
-      if (this.bed != null && this.bed.isBroken() && name.equals("bed")) {
-         this.player.sendMessage(String.format("Your %sBed%s is broken...", GOLD, RESET));
-         this.player.sendMessage(String.format("%s%s/bed%s%s doesn't work anymore until you place or find a new bed.", GOLD, ITALIC, GREY, ITALIC));
-         return;
-      }
-      if (telepoint.getSafeLocation() == null) {
-         this.sendMessage(String.format("Teleport %s is not safe!", telepoint.getTitle()));
-         return;
-      }
-      if (telepoint.isInterdimensional(this.player)) {
-         this.setCooldown();
-      }
-      if (this.anchor != null && name.equals("anchor")) {
-         if (this.anchor.hasNoCharges()) {
-            this.player.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges...", PURPLE, RESET));
-            this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible without charges.", PURPLE, ITALIC, GREY, ITALIC));
-            return;
-         }
-         System.out.println("anchor");
-         this.anchor.removeCharge();
-      }
-      if (!this.teleportInstant(telepoint)) {
-         this.sendMessage(String.format("Can't teleport you to %s", telepoint.getTitle().toLowerCase()));
-         return;
-      }
-      if (this.anchor != null && this.anchor.hasNoCharges() && name.equals("anchor")) {
-         this.player.sendMessage(String.format("Your %sRespawn Anchor%s is out of charges...", PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible without charges.", PURPLE, ITALIC, GREY, ITALIC));
-      } else if (this.anchor != null && this.anchor.getCharges() < 2 && name.equals("anchor")) {
-         this.player.sendMessage(String.format("%sWarning!%s Your %sRespawn Anchor%s is almost out of charges...", RED, RESET, PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%swill not be possible without charges.", PURPLE, ITALIC, GREY, ITALIC));
-      }
-   }
-
-   public void toBack() {
-      if (this.hasCooldown) {
-         this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
-         return;
-      }
-      if (this.back == null) {
-         this.sendMessage("You haven't teleported yet.");
-         return;
-      }
-      if (this.back.isInterdimensional(this.player)) {
-         this.setCooldown();
-      }
-      if (!this.teleportInstant(this.back)) {
-         this.sendMessage(String.format("Can't teleport you to %s", this.back.getTitle().toLowerCase()));
-      }
    }
 
    public void to(String name) {
-      if (this.isTeleporting) {
-         this.sendMessage("You are still teleporting, please wait...");
-         return;
-      }
-      if (this.hasCooldown) {
-         this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
-         return;
-      }
       Telepoint telepoint = this.list.get(name);
       if (telepoint == null) {
          this.sendMessage(String.format("Teleport %s%s%s not found!", PURPLE, name, RESET));
@@ -286,8 +157,7 @@ public class TeleportClient {
          this.player.sendMessage(String.format("Teleport %s is not safe!", telepoint.getTitle()));
          return;
       }
-
-      this.start(telepoint);
+      this.manager.start(telepoint);
    }
 
    public void test(String name) {
@@ -297,150 +167,6 @@ public class TeleportClient {
          return;
       }
       telepoint.getSafeLocation();
-   }
-
-   private void start(Telepoint telepoint) {
-      this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
-      this.isTeleporting = true;
-      if (telepoint != null) {
-         boolean interdimensional = telepoint.isInterdimensional(this.player);
-         String title = String.format("%s%sTeleporting!", (!interdimensional ? PURPLE : GOLD), BOLD).toUpperCase();
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleStart(title), 1));
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 5), 20));
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 4), 40));
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 3), 60));
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 2), 80));
-         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 1), 100));
-         this.tasks.add(this.application.runLater(() -> this.sendTitleEnding(telepoint), 120));
-      }
-   }
-
-   public void sendTitleStart(String title) {
-      if (this.isTeleporting) {
-         this.player.sendTitle(
-            title,
-            String.format("Preparing to jump. %sDon't move!", RED),
-            0, 60, 0
-         );
-         this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 1);
-         this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 4), 3);
-      }
-   }
-
-   public void sendTitleCountdown(String title, int countdown) {
-      if (this.isTeleporting) {
-         this.player.sendTitle(
-            title,
-            String.format("Jumping in %d %s!", countdown, "second" + (countdown == 1 ? "" : "s")),
-            0, 22, 0
-         );
-         this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 1);
-      }
-   }
-
-   public void sendTitleEnding(Telepoint telepoint) {
-      if (this.isTeleporting) {
-         World currentWorld = this.player.getWorld();
-         if (this.stop()) {
-            if (this.teleportInstant(telepoint)) {
-               this.player.sendTitle(
-                  Telepoint.getWorldName(telepoint.getWorld(), true).toUpperCase(),
-                  String.format("You've arrived at %s", telepoint.getTitle()),
-                  0, 20, 30
-               );
-               this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 3), 1);
-               this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 3);
-               this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 5);
-               if (!currentWorld.getUID().equals(telepoint.getWorld().getUID())) {
-                  this.setCooldown();
-               }
-            }
-         } else {
-            this.cancel();
-         }
-      }
-   }
-
-   private void clearTasks() {
-      for (BukkitTask task : this.tasks) {
-         task.cancel();
-      }
-   }
-
-   public boolean stop() {
-      if (this.isTeleporting) {
-         this.player.removePotionEffect(PotionEffectType.BLINDNESS);
-         this.clearTasks();
-         this.isTeleporting = false;
-         return true;
-      }
-      return false;
-   }
-
-   public void cancel() {
-      if (this.stop()) {
-         this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
-         this.player.sendTitle(
-            String.format("%s%sAborted!", RED, BOLD).toUpperCase(),
-            "You moved!",
-            0, 22, 0
-         );
-      }
-   }
-
-   public void setCooldown() {
-      this.hasCooldown = true;
-      this.bar.setProgress(0);
-      this.bar.addPlayer(this.player);
-
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.1), 20)); // 1
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.2), 40)); // 2
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.3), 60)); // 3
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.4), 80)); // 4
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.5), 100)); // 5
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.6), 120)); // 6
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.7), 140)); // 7
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.8), 160)); // 8
-      this.tasks.add(this.application.runLater(() -> this.setProgress(0.9), 180)); // 9
-      this.tasks.add(this.application.runLater(() -> this.setProgress(1), 200)); // 10
-
-      BukkitScheduler scheduler = this.application.getServer().getScheduler();
-      int cooldownId = scheduler.scheduleSyncRepeatingTask(this.application, this::particle, 1, 1);
-      this.application.runLaterAsync(() -> {
-         this.resetCooldown();
-         scheduler.cancelTask(cooldownId);
-      }, 205); // 10
-   }
-
-   public boolean isCoolingDown() {
-      return this.hasCooldown;
-   }
-
-   private void setProgress(double progress) {
-      if (!this.hasCooldown) {
-         return;
-      }
-      this.bar.setProgress(progress);
-   }
-
-   public void resetCooldown() {
-      if (!this.hasCooldown) {
-         return;
-      }
-      this.bar.removePlayer(this.player);
-      this.clearTasks();
-      this.bar.removeAll();
-      this.hasCooldown = false;
-      this.sendMessage(GOLD + "You can teleport to other dimensions again!");
-   }
-
-   private void particle() {
-      Location location = this.player.getEyeLocation();
-      Random random = new Random();
-      int min = 0;
-      double rand = (double) (random.nextInt(10 - min + 1) + min) / 10;
-      location.setY((location.getY() - 1) + rand);
-      this.player.spawnParticle(Particle.REDSTONE, location, 2, new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1));
    }
 
    public boolean remove(String name) {
@@ -453,24 +179,16 @@ public class TeleportClient {
       return new ArrayList<>(this.list.keySet());
    }
 
-   public Player getPlayer() {
-      return this.player;
-   }
-
    private void sendMessage(String message) {
-      this.player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
+      this.player.sendActionBar(Component.text(message));
    }
 
    public void saveTelepoints() {
       List<Telepoint> telepoints = new ArrayList<>();
-      if (this.back != null)
-         telepoints.add(this.back);
-      if (this.home != null)
-         telepoints.add(this.home);
-      if (this.bed != null)
-         telepoints.add(this.bed.getTelepoint());
-      if (this.anchor != null)
-         telepoints.add(this.anchor.getTelepoint());
+      if (this.back != null) telepoints.add(this.back);
+      if (this.home != null) telepoints.add(this.home);
+      if (this.bed != null) telepoints.add(this.bed.getTelepoint());
+      if (this.anchor != null) telepoints.add(this.anchor.getTelepoint());
       telepoints.addAll(this.list.values());
       if (!this.file.saveTeleports(this.player, telepoints)) {
          LOGGER.warning(String.format("Telepoints of %s couldn't be saved!", this.player.getName()));
@@ -482,16 +200,40 @@ public class TeleportClient {
       this.back = Telepoint.create("Back", Telepoint.Type.BACK, location);
    }
 
+   public void toBack() {
+      if (this.back == null) {
+         this.sendMessage("You haven't teleported yet.");
+         return;
+      }
+      if (!this.manager.teleport(this.back.getLocation())) {
+         this.sendMessage(String.format("Can't teleport you to %s", this.back.getTitle().toLowerCase()));
+      }
+   }
+
    public void setHome() {
       Location location = this.player.getLocation();
-      this.home = Telepoint.create("Home", Telepoint.Type.HOME, location);
+      this.home = Telepoint.create("Your home", Telepoint.Type.HOME, location);
       this.sendMessage(Telepoint.getTitle(location, "Home") + " location saved!");
-      this.player.sendMessage(String.format("You can use %s/home%s to teleport to your %s%s.", PURPLE, RESET, this.home.getTitle(), RESET));
+      this.player.sendMessage(String.format("You can use %s/home%s to teleport to %s%s.", PURPLE, RESET, this.home.getTitle().toLowerCase(), RESET));
       this.particles.smoke(this.home.getLocation());
    }
 
+   public void toHome() {
+      if (this.home == null) {
+         this.player.sendMessage(String.format("You don't have a%s home%s yet! Use %s/home set%s to set one.", BLUE, RESET, BLUE, RESET));
+         return;
+      }
+      this.manager.teleport(this.home);
+      this.manager.sendArrivalTitle(this.home);
+   }
+
+   public void testHome() {
+      LOGGER.info("testHome: test");
+      this.home.getSafeLocation();
+   }
+
    public boolean setBed(Location location) {
-      Telepoint telepoint = Telepoint.create("bed", Telepoint.Type.BED, location);
+      Telepoint telepoint = Telepoint.create("Your bed", Telepoint.Type.BED, location);
       if (this.bed != null && this.bed.getTelepoint().getLocation().equals(telepoint.getLocation())) {
          // Bed already clicked on
          return false;
@@ -503,6 +245,37 @@ public class TeleportClient {
       return true;
    }
 
+   public void toBed() {
+      if (this.bed == null) {
+         this.player.sendMessage(String.format("You don't have a%s bed%s yet. Right-click on a bed to set your bed-spawn point.", GOLD, RESET));
+         return;
+      }
+      if (this.bed.isBroken()) {
+         this.player.sendMessage(String.format("Your a%s bed%s is broken. Right-click on a new bed to set your bed-spawn point.", GOLD, RESET));
+         return;
+      }
+      Telepoint bed = this.bed.getTelepoint();
+      if (this.manager.teleport(bed)) {
+         this.manager.sendArrivalTitle(bed);
+         return;
+      }
+      this.sendMessage(String.format("Can't find your%s bed%s.", GOLD, RESET));
+   }
+
+   public void brokeBed(Block block, Player breaker) {
+      if (this.bed == null) {
+         return;
+      }
+      Telepoint telepoint = Telepoint.create("Possible Bed", Telepoint.Type.BED, block.getLocation(), block.getWorld());
+      if (!this.bed.getTelepoint().getLocation().equals(telepoint.getLocation())) {
+         return;
+      }
+      if (!this.player.getUniqueId().equals(breaker.getUniqueId())) {
+         this.player.sendMessage(String.format("Your%s bed%s is broken by %s%s%s...", GOLD, RESET, RED, breaker.getName(), RESET));
+      }
+      this.player.sendMessage(String.format("%s/bed%s doesn't work anymore until you right-click a new bed.", GOLD, RESET));
+   }
+
    public void setAnchor(Location location) {
       Telepoint telepoint = Telepoint.create("anchor", Telepoint.Type.ANCHOR, location);
       if (this.anchor != null && this.anchor.getTelepoint().getLocation().equals(telepoint.getLocation())) {
@@ -511,7 +284,7 @@ public class TeleportClient {
       }
       this.anchor = new AnchorPoint(telepoint);
       this.player.sendMessage(Telepoint.getTitle(location, "Respawn Anchor") + " location saved!");
-      this.sendMessage(String.format("You can use %s/anchor%s to teleport to this %sRespawn Anchor%s.", PURPLE, RESET, PURPLE, RESET));
+      this.sendMessage(String.format("You can use %s/anchor%s to teleport to this%s respawn anchor%s.", PURPLE, RESET, PURPLE, RESET));
       this.anchor.newAnchorEffect();
       World world = location.getWorld();
       if (world == null) {
@@ -520,14 +293,31 @@ public class TeleportClient {
       world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 1, 1);
    }
 
-   public void testHome() {
-      LOGGER.info("testHome: test");
-      this.home.getSafeLocation();
-   }
-
-   public void testBed() {
-      LOGGER.info("testBed: test");
-      this.bed.getTelepoint().getSafeLocation();
+   public void toAnchor() {
+      if (this.anchor == null) {
+         this.sendMessage(String.format("You don't have a%s respawn anchor%s yet!", PURPLE, RESET));
+         return;
+      }
+      if (this.anchor.isBroken()) {
+//         this.player.sendMessage(String.format("Your%s respawn anchor%s is broken.", PURPLE, RESET));
+         this.sendMessage(String.format("%s%s/anchor %s%sis not possible until you place and charge a new one.", PURPLE, ITALIC, GREY, ITALIC));
+         return;
+      }
+      if (this.anchor.hasNoCharges()) {
+//         this.player.sendMessage(String.format("Your%s respawn anchor%s is out of%s charges%s.", PURPLE, RESET, YELLOW, RESET));
+         this.sendMessage(String.format("%s%s/anchor %s%sis not possible without charges.", PURPLE, ITALIC, GREY, ITALIC));
+         return;
+      }
+      if (!this.manager.teleport(this.anchor.getTelepoint())) {
+         this.sendMessage(String.format("Can't teleport you to your%s respawn anchor%s.", PURPLE, RESET));
+         return;
+      }
+      this.anchor.removeCharge();
+      int charges = this.anchor.getCharges();
+      int max = this.anchor.getMaximumCharges();
+      if (charges < 2) {
+         this.player.sendMessage(String.format("%sWarning!%s Your%s respawn anchor%s is almost out of charges... [%s%s/%s%s]", RED, RESET, PURPLE, RESET, GREY, charges, max, RESET));
+      }
    }
 
    public void testAnchor() {
@@ -539,35 +329,18 @@ public class TeleportClient {
       this.anchor.newAnchorEffect();
    }
 
-   public boolean brokeBed(Block block, Player breaker) {
-      if (this.player.getUniqueId().equals(breaker.getUniqueId())) {
-         this.player.sendMessage(String.format("You broke your %sBed%s...", GOLD, RESET));
-         this.player.sendMessage(String.format("%s%s/bed%s%s doesn't work anymore until you place or find a new bed.", GOLD, ITALIC, GREY, ITALIC));
-
-         return true;
-      }
-      Telepoint telepoint = Telepoint.create("Possible Bed", Telepoint.Type.BED, block.getLocation(), block.getWorld());
-      if (this.bed != null && this.bed.getTelepoint().getLocation().equals(telepoint.getLocation())) {
-         this.player.sendMessage(String.format("%s%s%s broke your %sBed%s...", RED, breaker.getDisplayName(), RESET, GOLD, RESET));
-         this.player.sendMessage(String.format("%s%s/bed%s%s doesn't work anymore until you place or find a new bed.", GOLD, ITALIC, GREY, ITALIC));
-         return true;
-      }
-      return false;
-   }
-
-   public boolean brokeAnchor(Block block, Player breaker) {
-      if (this.player.getUniqueId().equals(breaker.getUniqueId())) {
-         this.player.sendMessage(String.format("You broke your %sRespawn Anchor%s...", PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible until you place and charge a new one.", PURPLE, ITALIC, GREY, ITALIC));
-         return true;
+   public void brokeAnchor(Block block, Player breaker) {
+      if (this.anchor == null) {
+         return;
       }
       Telepoint telepoint = Telepoint.create("Possible Anchor", Telepoint.Type.ANCHOR, block.getLocation(), block.getWorld());
-      if (this.anchor != null && this.anchor.getTelepoint().getLocation().equals(telepoint.getLocation())) {
-         this.player.sendMessage(String.format("%s%s%s broke your %sRespawn Anchor%s...", RED, breaker.getDisplayName(), RESET, PURPLE, RESET));
-         this.player.sendMessage(String.format("%s%s/anchor %s%sis not possible until you place and charge a new one.", PURPLE, ITALIC, GREY, ITALIC));
-         return true;
+      if (!this.anchor.getTelepoint().getLocation().equals(telepoint.getLocation())) {
+         return;
       }
-      return false;
+      if (!this.player.getUniqueId().equals(breaker.getUniqueId())) {
+         this.player.sendMessage(String.format("Your%s respawn anchor%s was broken by %s%s%s.", PURPLE, RESET, RED, breaker.getName(), RESET));
+      }
+      this.player.sendMessage(String.format("%s/anchor %sis not possible until you place and charge a new one.", PURPLE, RESET));
    }
 
    public List<UUID> getRequests() {
@@ -590,17 +363,5 @@ public class TeleportClient {
       return this.requests.contains(uuid);
    }
 
-   public boolean teleportInstant(Telepoint telepoint) {
-      Player player = this.getPlayer();
-      player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
-      this.setBack(player.getLocation());
-      Location location = telepoint.getSafeLocation();
-      if (player.teleport(location)) {
-         this.particles.smoke(location);
-         this.application.runLater(() -> player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1), 2);
-         this.application.runLater(() -> player.removePotionEffect(PotionEffectType.BLINDNESS), 3);
-      }
-      return true;
-   }
 
 }

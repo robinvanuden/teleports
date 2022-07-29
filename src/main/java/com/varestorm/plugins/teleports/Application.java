@@ -39,10 +39,10 @@ public final class Application extends JavaPlugin {
       this.registerCommand("back", quickTeleportCommand);
       this.registerCommand("anchor", quickTeleportCommand);
       this.registerCommand("home", quickTeleportCommand);
-      this.registerCommand("sethome", quickTeleportCommand);
-      this.registerCommand("testhome", quickTeleportCommand);
+      this.registerCommand("setHome", quickTeleportCommand);
+      this.registerCommand("testHome", quickTeleportCommand);
       this.registerCommand("testbed", quickTeleportCommand);
-      this.registerCommand("testanchor", quickTeleportCommand);
+      this.registerCommand("testAnchor", quickTeleportCommand);
 
       TeleportCommand teleportCommand = new TeleportCommand(this);
       this.registerCommand("tp", teleportCommand, teleportCommand);
@@ -65,7 +65,7 @@ public final class Application extends JavaPlugin {
    }
 
    private void registerCommand(String name, CommandExecutor executor) {
-      this.registerCommand(name, executor, null);
+      this.registerCommand(name.toLowerCase(), executor, null);
    }
 
    private void registerCommand(String name, CommandExecutor executor, TabCompleter completer) {

@@ -10,26 +10,14 @@ import org.bukkit.entity.Player;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
-public class Telepoint {
+public record Telepoint(String name, com.varestorm.plugins.teleports.teleporting.Telepoint.Type type, World world, Location location) {
 
    public enum Type {BACK, HOME, BED, ANCHOR, CUSTOM}
 
-   private static final BlockFace[] FACES = new BlockFace[]{BlockFace.SELF, BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
-
-   private final World world;
-   private final Location location;
-   private final String name;
-   private final Type type;
-
-   Telepoint(String name, Type type, World world, Location location) {
-      this.location = location;
-      this.world = world;
-      this.name = name.toLowerCase();
-      this.type = type;
-   }
+   private static final BlockFace[] FACES = new BlockFace[]{BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
 
    public Location getLocation() {
-      return this.location;
+      return this.location.clone();
    }
 
    public boolean isInterdimensional(Player player) {
@@ -74,16 +62,16 @@ public class Telepoint {
    }
 
    public static ChatColor getWorldColor(World.Environment environment) {
-      switch (environment) {
-         case NETHER:
-            return ChatColor.GOLD;
-         case THE_END:
-            return ChatColor.DARK_PURPLE;
-         case NORMAL:
-            return ChatColor.BLUE;
-         default:
-            return ChatColor.GREEN;
-      }
+      return switch (environment) {
+         case NETHER -> ChatColor.GOLD;
+         case THE_END -> ChatColor.DARK_PURPLE;
+         case NORMAL -> ChatColor.BLUE;
+         default -> ChatColor.GREEN;
+      };
+   }
+
+   public ChatColor getWorldColor() {
+      return getWorldColor(this.getWorld().getEnvironment());
    }
 
    public static String getWorldName(World world, boolean bold) {
@@ -91,21 +79,12 @@ public class Telepoint {
    }
 
    public static String getWorldName(World.Environment environment, boolean bold) {
-      String world;
-      switch (environment) {
-         case NORMAL:
-            world = "Varestørm";
-            break;
-         case NETHER:
-            world = "The Nether Regions";
-            break;
-         case THE_END:
-            world = "The End";
-            break;
-         default:
-            world = "The Unknown";
-            break;
-      }
+      String world = switch (environment) {
+         case NORMAL -> "Varestørm";
+         case NETHER -> "The Nether Regions";
+         case THE_END -> "The End";
+         default -> "The Unknown";
+      };
       return Telepoint.getTitle(environment, world, bold);
    }
 
@@ -131,16 +110,18 @@ public class Telepoint {
    }
 
    public Location getSafeLocation() {
-      if (this.getLocation() == null) {
-         return null;
-      }
-      Location location = this.getLocation().clone();
+      Location location = this.getLocation();
       ParticleManager.highlightBlock(location, Color.BLUE);
+      // Check self block
       Location safe = checkSafeLocation(location.getBlock());
       if (safe != null) {
          return location;
       }
-      return getSafeLocation(this.getLocation(), BlockFace.UP);
+      safe = getSafeLocation(location, BlockFace.UP);
+      if (safe != null) {
+         return safe;
+      }
+      return getSafeLocation(location, BlockFace.DOWN);
    }
 
    private static Location getSafeLocation(Location location, BlockFace checkAfter) {
@@ -153,6 +134,9 @@ public class Telepoint {
          }
       }
       if ((checkAfter == BlockFace.UP) && (location.getY() >= Objects.requireNonNull(location.getWorld()).getMaxHeight())) {
+         return null;
+      }
+      if ((checkAfter == BlockFace.DOWN) && (location.getY() <= Objects.requireNonNull(location.getWorld()).getMinHeight())) {
          return null;
       }
       return getSafeLocation(block.getRelative(checkAfter).getLocation(), checkAfter);
@@ -172,39 +156,17 @@ public class Telepoint {
          return null;
       }
       ParticleManager.highlightBlock(block, Color.GREEN);
-      Location blockLocation = block.getLocation();
-      blockLocation.setX(blockLocation.getX() + 0.5);
-      blockLocation.setY(blockLocation.getY() + 0.5);
-      blockLocation.setZ(blockLocation.getZ() + 0.5);
-      return blockLocation;
+      Location blockLocation = block.getLocation().clone();
+      return blockLocation.add(0.5, 0.5, 0.5);
    }
 
    public static boolean blockBelowSafe(Block block) {
       Block below = block.getRelative(BlockFace.DOWN);
-//      if (below.isLiquid()) {
-//         return false;
-//      }
       Material belowType = below.getType();
       if (!belowType.isSolid()) {
          return false;
       }
       return !belowType.isAir();
-   }
-
-   public Block getRelative(BlockFace face) {
-      return this.getLocation().getBlock().getRelative(face);
-   }
-
-   public Location getRelativeLocation(BlockFace face) {
-      return this.getRelative(face).getLocation();
-   }
-
-   public Location getTop() {
-      return this.getRelativeLocation(BlockFace.UP);
-   }
-
-   public Location getBottom() {
-      return this.getRelativeLocation(BlockFace.DOWN);
    }
 
    public static Telepoint fromString(String s, Application application) {
