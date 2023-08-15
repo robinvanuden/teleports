@@ -25,14 +25,8 @@ import java.util.logging.Logger;
 public class TeleportManager {
 
    private static Logger LOGGER;
-   final static ChatColor BLUE = ChatColor.BLUE;
    final static ChatColor GOLD = ChatColor.GOLD;
-   final static ChatColor YELLOW = ChatColor.YELLOW;
-   final static ChatColor PURPLE = ChatColor.DARK_PURPLE;
    final static ChatColor RED = ChatColor.RED;
-   final static ChatColor GREEN = ChatColor.GREEN;
-   final static ChatColor GREY = ChatColor.GRAY;
-   final static ChatColor ITALIC = ChatColor.ITALIC;
    final static ChatColor BOLD = ChatColor.BOLD;
    final static ChatColor RESET = ChatColor.RESET;
 
@@ -57,17 +51,6 @@ public class TeleportManager {
    }
 
    public boolean teleport(Telepoint telepoint) {
-      if (this.teleporting) {
-         this.sendMessage("You are still teleporting, please wait...");
-         return false;
-      }
-      if (this.onCooldown) {
-         this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
-         return false;
-      }
-      if (telepoint.isInterdimensional(this.player)) {
-         this.setCooldown();
-      }
       Location location = telepoint.getSafeLocation();
       if (location == null) {
          this.sendMessage("Teleport was not safe...");
@@ -77,19 +60,29 @@ public class TeleportManager {
    }
 
    public boolean teleport(Location location) {
+      if (this.teleporting) {
+         this.sendMessage("You are still teleporting, please wait...");
+         return false;
+      }
+      if (this.onCooldown) {
+         this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
+         return false;
+      }
       if (location == null) {
          return false;
       }
-      this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
+      if (Telepoint.isInterdimensional(this.player, location.getWorld().getEnvironment())) {
+         this.setCooldown();
+      }
       this.doLoadChunk(location);
       this.application.runLater(() -> this.doTeleport(location), 1);
-      this.application.runLaterAsync(() -> this.particles.smoke(location), 2);
-      this.application.runLater(() -> this.player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1), 3);
-      this.application.runLater(() -> this.player.removePotionEffect(PotionEffectType.BLINDNESS), 4);
+      this.application.runLaterAsync(() -> this.particles.smoke(location.getBlock().getLocation().clone()), 1);
+      this.application.runLater(() -> this.player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1), 2);
+      this.application.runLater(() -> this.player.removePotionEffect(PotionEffectType.BLINDNESS), 2);
       return true;
    }
 
-   void start(Telepoint telepoint) {
+   public void start(Telepoint telepoint, boolean longer) {
       if (this.teleporting) {
          this.sendMessage("You are still teleporting, please wait...");
          return;
@@ -98,7 +91,7 @@ public class TeleportManager {
          this.sendMessage(String.format("Recharging%s particles%s takes time! Please wait...", GOLD, RESET));
          return;
       }
-      this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 400, 1000, false));
+      this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100000, 1000, false));
       this.teleporting = true;
       if (telepoint == null) {
          this.sendMessage(RED + "Err!! Something went wrong...");
@@ -108,35 +101,21 @@ public class TeleportManager {
       Location location = telepoint.getLocation();
       String title = String.format("%s%sTeleporting!", telepoint.getWorldColor(), BOLD).toUpperCase();
       this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleStart(title), 1));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 5), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 4), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 3), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 2), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, 1), ticks));
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
+      for (int i = longer ? 10 : 5; i > 0; i--) {
+         ticks = ticks + 10;
+         this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
+         ticks = ticks + 5;
+         this.application.runLaterAsync(() -> this.particles.smoke(telepoint.getSafeLocation(), Color.WHITE), ticks);
+         ticks = ticks + 5;
+         int countdown = i;
+         this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, countdown), ticks));
+      }
       ticks = ticks + 10;
       this.tasks.add(this.application.runLater(() -> this.sendTitleEnding(telepoint), ticks));
    }
 
    public void doLoadChunk(Location location) {
       Chunk chunk = location.getChunk();
-      this.particles.smoke(location, Color.WHITE);
       if (!chunk.isLoaded()) {
          LOGGER.info("Chuck load");
          chunk.load();
@@ -144,8 +123,12 @@ public class TeleportManager {
    }
 
    void showTitle(String title, String subtitle) {
+      this.showTitle(title, subtitle, true);
+   }
+
+   void showTitle(String title, String subtitle, boolean zero) {
       this.player.clearTitle();
-      this.player.showTitle(Title.title(Component.text(title), Component.text(subtitle), Title.Times.times(Duration.ZERO, Duration.ofSeconds(3), Duration.ZERO)));
+      this.player.showTitle(Title.title(Component.text(title), Component.text(subtitle), Title.Times.times(zero ? Duration.ZERO : Duration.ofMillis(500), Duration.ofSeconds(4), Duration.ofSeconds(1))));
    }
 
    public void sendTitleStart(String title) {
@@ -175,17 +158,25 @@ public class TeleportManager {
       if (!this.teleport(telepoint)) {
          return;
       }
-      this.sendArrivalTitle(telepoint);
       this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 3), 1);
       this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 3);
       this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 5);
+      this.application.runLater(() -> this.sendArrivalTitle(telepoint), 3);
       if (interdimensional) {
          this.setCooldown();
       }
    }
 
    public void sendArrivalTitle(Telepoint telepoint) {
-      this.showTitle(Telepoint.getWorldName(telepoint.getWorld(), true).toUpperCase(), String.format("You've arrived at %s", telepoint.getTitle().toLowerCase()));
+      this.sendArrivalTitle(telepoint, true);
+   }
+
+   public void sendArrivalTitle(Telepoint telepoint, boolean lowercase) {
+      String subtitle = String.format("You've arrived at %s", telepoint.getTitle());
+      if (lowercase) {
+         subtitle = subtitle.toLowerCase();
+      }
+      this.showTitle(Telepoint.getWorldName(telepoint.getWorld(), true).toUpperCase(), subtitle, false);
    }
 
    private void clearTasks() {
@@ -276,5 +267,10 @@ public class TeleportManager {
 
    private void doTeleport(Location location) {
       this.player.teleport(location, PlayerTeleportEvent.TeleportCause.PLUGIN);
+   }
+
+   public void disable() {
+      this.cancel();
+      this.bossBar.removeAll();
    }
 }

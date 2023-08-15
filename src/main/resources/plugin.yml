@@ -19,23 +19,14 @@ commands:
     usage: /home
   sethome:
     usage: /sethome
-  testhome:
-    usage: /testhome
-    permission: op
-  testbed:
-    usage: /testbed
-    permission: op
-  testanchor:
-    usage: /testanchor
-    permission: op
   tp:
-    usage: /tp
+    usage: /tp [action] [name]
     aliases: [ teleport ]
-    description: /tp [action] [name]
+    description: Used to teleport to certain locations.
   tpp:
-    usage: /tpp
+    usage: /tpp [action] [player]
     aliases: [ teleportplayer, tpa ]
-    description: /tpp [action] [player]
+    description: Used to teleport to other players.
 permissions:
   op:
     default: op

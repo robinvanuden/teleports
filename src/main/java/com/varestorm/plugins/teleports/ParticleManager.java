@@ -57,9 +57,9 @@ public record ParticleManager(Application application) {
       if (location == null) {
          return;
       }
-      location.add(0.5, 0, 0.5);
-      Location top = location.add(0, 1, 0);
-      this.application.runLater(() -> doSmoke(location, primary, count), 20);
+      Location center = location.clone().add(0.5, 0, 0.5);
+      Location top = center.clone().add(0, 1, 0);
+      this.application.runLater(() -> doSmoke(center, primary, count), 20);
       if (!low) this.application.runLater(() -> doSmoke(top, primary, count), 20);
    }
 
@@ -68,7 +68,7 @@ public record ParticleManager(Application application) {
       if (world == null) {
          return;
       }
-      Location location2 = location.add(0, 0.5, 0);
+      Location location2 = location.clone().add(0, 0.5, 0);
       world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
       world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
       world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));

@@ -2,9 +2,15 @@ package com.varestorm.plugins.teleports.teleporting;
 
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.ParticleManager;
-import org.bukkit.*;
+import org.bukkit.ChatColor;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.type.Slab;
+import org.bukkit.block.data.type.Stairs;
+import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.entity.Player;
 
 import javax.annotation.Nullable;
@@ -14,20 +20,22 @@ public record Telepoint(String name, com.varestorm.plugins.teleports.teleporting
 
    public enum Type {BACK, HOME, BED, ANCHOR, CUSTOM}
 
-   private static final BlockFace[] FACES = new BlockFace[]{BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
+   private static final BlockFace[] FACES = new BlockFace[]{BlockFace.SELF, BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST};
 
    public Location getLocation() {
       return this.location.clone();
    }
 
    public boolean isInterdimensional(Player player) {
+      return isInterdimensional(player, this.getEnvironment());
+   }
+
+   public static boolean isInterdimensional(Player player, World.Environment target) {
       World world = player.getLocation().getWorld();
       if (world == null) {
          return true;
       }
-      World.Environment environment = world.getEnvironment();
-      World.Environment environment2 = this.getEnvironment();
-      return (!environment.equals(environment2));
+      return (!target.equals(world.getEnvironment()));
    }
 
    public String getName() {
@@ -115,7 +123,7 @@ public record Telepoint(String name, com.varestorm.plugins.teleports.teleporting
       // Check self block
       Location safe = checkSafeLocation(location.getBlock());
       if (safe != null) {
-         return location;
+         return safe;
       }
       safe = getSafeLocation(location, BlockFace.UP);
       if (safe != null) {
@@ -142,31 +150,41 @@ public record Telepoint(String name, com.varestorm.plugins.teleports.teleporting
       return getSafeLocation(block.getRelative(checkAfter).getLocation(), checkAfter);
    }
 
-   private static Location checkSafeLocation(Block block) {
+   public static Location checkSafeLocation(Block block) {
+      Location location = block.getLocation().clone().add(.5, 0, .5);
+      // Is slab
+      if (block.getBlockData() instanceof Slab slab && slab.getType().equals(Slab.Type.BOTTOM)) {
+         return location.add(0, .5, 0);
+      }
+      // Is trapdoor
+      if (block.getBlockData() instanceof TrapDoor) {
+         return location;
+      }
+      // Is stairs
+      if (block.getBlockData() instanceof Stairs) {
+         return location.add(0, 1, 0);
+      }
       if (!block.isEmpty()) {
-         ParticleManager.highlightBlock(block, Color.RED);
          return null;
       }
       if (block.isLiquid()) {
-         ParticleManager.highlightBlock(block, Color.RED);
          return null;
       }
       if (!blockBelowSafe(block)) {
-         ParticleManager.highlightBlock(block, Color.RED);
          return null;
       }
-      ParticleManager.highlightBlock(block, Color.GREEN);
-      Location blockLocation = block.getLocation().clone();
-      return blockLocation.add(0.5, 0.5, 0.5);
+      return location;
    }
 
    public static boolean blockBelowSafe(Block block) {
       Block below = block.getRelative(BlockFace.DOWN);
-      Material belowType = below.getType();
-      if (!belowType.isSolid()) {
+      if (below.isLiquid()) {
          return false;
       }
-      return !belowType.isAir();
+      if (block.getBlockData() instanceof Slab slab) {
+         return slab.getType().equals(Slab.Type.BOTTOM);
+      }
+      return !below.isEmpty();
    }
 
    public static Telepoint fromString(String s, Application application) {

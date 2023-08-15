@@ -34,11 +34,11 @@ public record TeleportPlayerCommand(Application application) implements CommandE
       player.sendActionBar(Component.text(message));
    }
 
-   private boolean list(Player player) {
+   private void list(Player player) {
       TeleportClient client = this.application.getClient(player);
       if (!client.hasRequests()) {
          player.sendMessage(RED + "No requests received");
-         return true;
+         return;
       }
       player.sendMessage(String.format("%s%sTeleport requests", PURPLE, BOLD));
       player.sendMessage("------------------");
@@ -53,49 +53,49 @@ public record TeleportPlayerCommand(Application application) implements CommandE
          player.sendMessage(String.format("%d. %s%s", count, p.isOnline() ? BLUE : RED, name));
          count++;
       }
-      return true;
    }
 
-   public boolean request(Player requester, String playerName) {
-      Player player = this.application.getServer().getPlayer(playerName);
-      if (player == null) {
-         this.sendMessage(requester, String.format("%s%sPlayer not found.", RED, ITALIC));
-         return true;
+   public void request(Player sender, String playerName) {
+      Player receiver = this.application.getServer().getPlayer(playerName);
+      if (receiver == null) {
+         this.sendMessage(sender, String.format("%s%sPlayer not found.", RED, ITALIC));
+         return;
       }
-      TeleportClient client = this.application.getClient(player);
-      if (client.hasRequest(requester.getUniqueId())) {
-         this.sendMessage(requester, String.format("%s%sYou already send a request to %s%s.", GREY, ITALIC, Telepoint.getTitle(player.getWorld(), player.getName()), GREY));
-         return true;
+      TeleportClient client = this.application.getClient(receiver);
+      if (client.hasRequest(sender.getUniqueId())) {
+         this.sendMessage(sender, String.format("%s%sYou already send a request to %s%s.", GREY, ITALIC, Telepoint.getTitle(receiver.getWorld(), receiver.getName()), GREY));
+         return;
       }
-      client.addRequest(requester.getUniqueId());
-      this.sendMessage(requester, String.format("Request to teleport to %s has been made!", Telepoint.getTitle(player.getWorld(), player.getName())));
-      player.sendMessage(String.format("You received a teleport request from %s.", Telepoint.getTitle(player.getWorld(), player.getName())));
-      player.sendMessage(String.format("To accept the request use %s/tpp accept %s", GREEN, requester.getName()));
-      player.sendMessage(String.format("or deny the request with %s/tpp deny %s%s.", RED, requester.getName(), RESET));
-      return true;
+      client.addRequest(sender.getUniqueId());
+      sender.sendMessage(String.format("Teleport request to %s has been made!", Telepoint.getTitle(receiver.getWorld(), receiver.getName())));
+
+      receiver.sendMessage(String.format("%s%sTELEPORT REQUEST!", BLUE, BOLD));
+      receiver.sendMessage(String.format("%s wants to teleport to your location.", Telepoint.getTitle(sender.getWorld(), sender.getName())));
+      receiver.sendMessage(String.format("To accept this request use %s/tpp accept %s", GREEN, sender.getName()));
+      receiver.sendMessage(String.format("or deny with %s/tpp deny %s%s.", RED, sender.getName(), RESET));
    }
 
-   public boolean process(Player player, String requesterName, boolean accept) {
+   public void process(Player player, String requesterName, boolean accept) {
       Player requester = this.application.getServer().getPlayer(requesterName);
       if (requester == null) {
          this.sendMessage(player, String.format("%s%sPlayer is not online...", RED, ITALIC));
-         return true;
+         return;
       }
       TeleportClient client = this.application.getClient(player);
       if (!client.hasRequest(requester.getUniqueId())) {
          this.sendMessage(player, String.format("%s%s%s did not send a request...", requesterName, RED, ITALIC));
-         return true;
+         return;
       }
       TeleportClient requesterClient = this.application.getClient(requester);
       if (accept) {
          Telepoint telepoint = Telepoint.create(player.getName(), Telepoint.Type.CUSTOM, player.getLocation(), player.getWorld());
          requesterClient.getManager().teleport(telepoint);
+         requesterClient.getManager().sendArrivalTitle(telepoint, false);
          this.sendMessage(requester, String.format("%s%s%s has%s accepted%s your request!", AQUA, player.getName(), RESET, GREEN, RESET));
       } else {
          this.sendMessage(requester, String.format("%s%s%s has%s denied%s your request!", AQUA, player.getName(), RESET, RED, RESET));
       }
       client.removeRequest(requester.getUniqueId());
-      return true;
    }
 
    @Override
@@ -103,18 +103,28 @@ public record TeleportPlayerCommand(Application application) implements CommandE
       if (!(sender instanceof Player player)) {
          return false;
       }
+      if (label.equals("tpa")) {
+         player.sendMessage(String.format("%s%sATTENTION!", RED, BOLD));
+         player.sendMessage(String.format("The %s/tpa%s command will be removed. Use %s/tpp%s instead.", RED, RESET, BLUE, RESET));
+         player.sendMessage(String.format("%s(Teleport Player -> tpp, makes more sense.)", ITALIC));
+         player.sendMessage(String.format("%s%sStill works the same, only starts different.", GREY, ITALIC));
+      }
       if (args.length > 0) {
          if ("list".equals(args[0])) {
-            return this.list(player);
+            this.list(player);
+            return true;
          }
       }
       if (args.length > 1) {
          switch (args[0]) {
-            case "request":
-               return this.request(player, args[1]);
-            case "accept":
-            case "deny":
-               return this.process(player, args[1], args[0].equals("accept"));
+            case "request" -> {
+               this.request(player, args[1]);
+               return true;
+            }
+            case "accept", "deny" -> {
+               this.process(player, args[1], args[0].equals("accept"));
+               return true;
+            }
          }
       }
       return false;
@@ -133,7 +143,7 @@ public record TeleportPlayerCommand(Application application) implements CommandE
       commands.add("deny");
 
       if (args.length > 0) {
-         if (args[0].equals("")) {
+         if (args[0].isEmpty()) {
             suggestions.addAll(commands);
          } else {
             for (String c : commands) {
@@ -153,7 +163,7 @@ public record TeleportPlayerCommand(Application application) implements CommandE
                      players.add(p.getName());
                   }
                }
-               if (args[1].equals("")) {
+               if (args[1].isEmpty()) {
                   suggestions.addAll(players);
                } else {
                   for (String c : players) {
@@ -169,7 +179,7 @@ public record TeleportPlayerCommand(Application application) implements CommandE
                   OfflinePlayer p = this.application.getServer().getOfflinePlayer(uuid);
                   players.add(p.getName());
                }
-               if (args[1].equals("")) {
+               if (args[1].isEmpty()) {
                   suggestions.addAll(players);
                } else {
                   for (String c : players) {

@@ -24,6 +24,8 @@ public final class Application extends JavaPlugin {
 
    private Map<UUID, TeleportClient> clients;
 
+   public enum WorldType {VARESTORM, NETHER, END}
+
    private BukkitScheduler scheduler = Bukkit.getScheduler();
 
    @Override
@@ -40,9 +42,6 @@ public final class Application extends JavaPlugin {
       this.registerCommand("anchor", quickTeleportCommand);
       this.registerCommand("home", quickTeleportCommand);
       this.registerCommand("setHome", quickTeleportCommand);
-      this.registerCommand("testHome", quickTeleportCommand);
-      this.registerCommand("testbed", quickTeleportCommand);
-      this.registerCommand("testAnchor", quickTeleportCommand);
 
       TeleportCommand teleportCommand = new TeleportCommand(this);
       this.registerCommand("tp", teleportCommand, teleportCommand);
@@ -86,6 +85,23 @@ public final class Application extends JavaPlugin {
 
    public World getWorld(String name) {
       return this.getServer().getWorld(name);
+   }
+
+   public World getWorld(World.Environment environment) {
+      for (World world : this.getServer().getWorlds()) {
+         if (world.getEnvironment().equals(environment)) {
+            return world;
+         }
+      }
+      return null;
+   }
+
+   public World getWorld(WorldType type) {
+      return switch (type) {
+         case VARESTORM -> this.getWorld(World.Environment.NORMAL);
+         case NETHER -> this.getWorld(World.Environment.NETHER);
+         case END -> this.getWorld(World.Environment.THE_END);
+      };
    }
 
    public void runAsync(Runnable runnable) {

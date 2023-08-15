@@ -73,6 +73,10 @@ public class TeleportClient {
       return this.manager;
    }
 
+   public Player getPlayer() {
+      return this.player;
+   }
+
    public void getList() {
       this.player.sendMessage(String.format("%s%sTeleports", PURPLE, BOLD));
       this.player.sendMessage("------------------------------");
@@ -101,7 +105,7 @@ public class TeleportClient {
       this.player.sendMessage(String.format("%sTeleport list", PURPLE));
       this.player.sendMessage("------------------------------");
       System.out.println(this.list);
-      if (this.list.size() > 0) {
+      if (!this.list.isEmpty()) {
          int count = 1;
          for (Map.Entry<String, Telepoint> entry : this.list.entrySet()) {
             Telepoint telepoint = entry.getValue();
@@ -157,7 +161,7 @@ public class TeleportClient {
          this.player.sendMessage(String.format("Teleport %s is not safe!", telepoint.getTitle()));
          return;
       }
-      this.manager.start(telepoint);
+      this.manager.start(telepoint, false);
    }
 
    public void test(String name) {
@@ -194,6 +198,7 @@ public class TeleportClient {
          LOGGER.warning(String.format("Telepoints of %s couldn't be saved!", this.player.getName()));
       }
       LOGGER.info(String.format("Telepoints of %s saved!", this.player.getName()));
+      this.manager.disable();
    }
 
    public void setBack(Location location) {
@@ -205,17 +210,20 @@ public class TeleportClient {
          this.sendMessage("You haven't teleported yet.");
          return;
       }
-      if (!this.manager.teleport(this.back.getLocation())) {
-         this.sendMessage(String.format("Can't teleport you to %s", this.back.getTitle().toLowerCase()));
-      }
+      this.manager.teleport(this.back.getLocation());
    }
 
    public void setHome() {
       Location location = this.player.getLocation();
       this.home = Telepoint.create("Your home", Telepoint.Type.HOME, location);
-      this.sendMessage(Telepoint.getTitle(location, "Home") + " location saved!");
       this.player.sendMessage(String.format("You can use %s/home%s to teleport to %s%s.", PURPLE, RESET, this.home.getTitle().toLowerCase(), RESET));
-      this.particles.smoke(this.home.getLocation());
+   }
+
+   public void testHome() {
+      if (this.home == null) {
+         return;
+      }
+      this.home.getSafeLocation();
    }
 
    public void toHome() {
@@ -225,11 +233,6 @@ public class TeleportClient {
       }
       this.manager.teleport(this.home);
       this.manager.sendArrivalTitle(this.home);
-   }
-
-   public void testHome() {
-      LOGGER.info("testHome: test");
-      this.home.getSafeLocation();
    }
 
    public boolean setBed(Location location) {
@@ -277,7 +280,7 @@ public class TeleportClient {
    }
 
    public void setAnchor(Location location) {
-      Telepoint telepoint = Telepoint.create("anchor", Telepoint.Type.ANCHOR, location);
+      Telepoint telepoint = Telepoint.create("Your respawn anchor", Telepoint.Type.ANCHOR, location);
       if (this.anchor != null && this.anchor.getTelepoint().getLocation().equals(telepoint.getLocation())) {
          // Anchor already clicked on
          return;
@@ -312,21 +315,13 @@ public class TeleportClient {
          this.sendMessage(String.format("Can't teleport you to your%s respawn anchor%s.", PURPLE, RESET));
          return;
       }
+      this.manager.sendArrivalTitle(this.anchor.getTelepoint());
       this.anchor.removeCharge();
       int charges = this.anchor.getCharges();
       int max = this.anchor.getMaximumCharges();
       if (charges < 2) {
          this.player.sendMessage(String.format("%sWarning!%s Your%s respawn anchor%s is almost out of charges... [%s%s/%s%s]", RED, RESET, PURPLE, RESET, GREY, charges, max, RESET));
       }
-   }
-
-   public void testAnchor() {
-      LOGGER.info("testAnchor: test");
-      if (this.anchor == null) {
-         return;
-      }
-      this.anchor.getTelepoint().getSafeLocation();
-      this.anchor.newAnchorEffect();
    }
 
    public void brokeAnchor(Block block, Player breaker) {
@@ -356,12 +351,10 @@ public class TeleportClient {
    }
 
    public boolean hasRequests() {
-      return this.requests.size() > 0;
+      return !this.requests.isEmpty();
    }
 
    public boolean hasRequest(UUID uuid) {
       return this.requests.contains(uuid);
    }
-
-
 }
