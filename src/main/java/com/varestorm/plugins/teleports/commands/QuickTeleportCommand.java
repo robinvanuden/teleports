@@ -3,7 +3,6 @@ package com.varestorm.plugins.teleports.commands;
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
-import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -14,9 +13,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.bukkit.ChatColor.BOLD;
-import static org.bukkit.ChatColor.RED;
 
 public record QuickTeleportCommand(
   Application application) implements CommandExecutor, TabCompleter {
@@ -53,15 +49,11 @@ public record QuickTeleportCommand(
         client.toAnchor();
         return true;
       }
-      case "sethome" -> {
-        // TODO: Remove this message in future! (1.1.6)
-        player.sendMessage(String.format("%s%sATTENTION!", RED, BOLD));
-        player.sendMessage(String.format("This command is going away! Use %s/home set%s in the future.", ChatColor.BLUE, ChatColor.RESET));
-        client.setHome();
-        return true;
-      }
       case "spawn" -> {
-        World world = args.length > 0 ? this.application.getWorld(Application.WorldType.valueOf(args[0].toUpperCase())) : player.getWorld();
+        if (args.length == 0) {
+          return this.doTeleportSpawn(player.getWorld(), client);
+        }
+        World world = this.application.getWorld(Application.WorldType.valueOf(args[0].toUpperCase()));
         if (world == null) {
           world = player.getWorld();
         }

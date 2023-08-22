@@ -2,7 +2,7 @@ package com.varestorm.plugins.teleports.commands;
 
 import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -15,17 +15,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+import static net.kyori.adventure.text.format.NamedTextColor.*;
+import static net.kyori.adventure.text.format.TextDecoration.BOLD;
+import static net.kyori.adventure.text.format.TextDecoration.ITALIC;
+
 public record TeleportCommand(
   Application application) implements CommandExecutor, TabCompleter, Listener {
-
-
-  private final static ChatColor BLUE = ChatColor.BLUE;
-  private final static ChatColor GOLD = ChatColor.GOLD;
-  private final static ChatColor MAGENTA = ChatColor.LIGHT_PURPLE;
-  private final static ChatColor GREEN = ChatColor.GREEN;
-  private final static ChatColor RED = ChatColor.RED;
-  private final static ChatColor BOLD = ChatColor.BOLD;
-  private final static ChatColor RESET = ChatColor.RESET;
 
   public static Map<UUID, Integer> areTeleporting;
 
@@ -41,13 +36,13 @@ public record TeleportCommand(
       return true;
     }
     if (args.length == 0) {
-      player.sendMessage(RED + "Unknown command. Try /tp help");
+      player.sendMessage(Component.text("Unknown command. Try /tp help", RED));
       return true;
     }
     TeleportClient client = this.application.getClient(player.getUniqueId());
     if (client == null) {
       System.out.println("TeleportClient is null");
-      sender.sendMessage(RED + "Something went wrong!");
+      sender.sendMessage(Component.text("Something went wrong!", RED));
       return true;
     }
     switch (args[0]) {
@@ -60,7 +55,15 @@ public record TeleportCommand(
         return true;
       }
       case "to" -> {
-        client.to(args[1]);
+        if (args.length > 1) {
+          client.to(args[1], false);
+          return true;
+        } else {
+          return false;
+        }
+      }
+      case "force" -> {
+        client.to(args[1], true);
         return true;
       }
       case "test" -> {
@@ -78,38 +81,102 @@ public record TeleportCommand(
         return true;
       }
       default -> {
-        player.sendMessage(RED + "Unknown command. Try /tp help");
+        player.sendMessage(Component.text("Unknown command. Try /tp help", RED));
         return true;
       }
     }
   }
 
   void showHelp(Player player) {
-    player.sendMessage(String.format("%s%sTeleport help", BLUE, BOLD).toUpperCase());
+    player.sendMessage(Component.text("TELEPORT HELP", BLUE, BOLD));
     player.sendMessage("------------------------------");
-    player.sendMessage(String.format("%s%sHow to use:", GOLD, BOLD));
-    player.sendMessage(String.format("Use %s/tp set example%s to create a teleport named%s example%s.", GREEN, RESET, GREEN, RESET));
-    player.sendMessage(String.format("- The location%s where you are standing%s will be used.", BLUE, RESET));
-    player.sendMessage(String.format("Use %s/tp to example%s to teleport to%s example%s.", MAGENTA, RESET, MAGENTA, RESET));
-    player.sendMessage(String.format("Use %s/tp remove example%s to remove%s example%s.", RED, RESET, RED, RESET));
-    player.sendMessage("");
-    player.sendMessage(String.format("%s%sQuick teleports:", GOLD, BOLD));
-    player.sendMessage(String.format("Use %s/back%s to teleport back to the previous location.", GOLD, RESET));
-    player.sendMessage(String.format("- Also works after you%s died%s and want to go back to your stuff.", RED, RESET));
-    player.sendMessage(String.format("Use %s/home set%s to set a%s home-point%s.", BLUE, RESET, BLUE, RESET));
-    player.sendMessage(String.format("Use %s/home%s to teleport to your%s home-point%s.", BLUE, RESET, BLUE, RESET));
-    player.sendMessage(String.format("Use %s/bed%s to teleport to your bed.", GOLD, RESET));
-    player.sendMessage(String.format("Use %s/anchor%s to teleport to your%s respawn anchor%s.", MAGENTA, RESET, MAGENTA, RESET));
-    player.sendMessage(String.format("- Your%s respawn anchor%s needs to be%s charged%s!", MAGENTA, RESET, GOLD, RESET));
-    player.sendMessage("");
-    player.sendMessage(String.format("%s%sPlayer teleports:", GOLD, BOLD));
-    player.sendMessage(String.format("Use %s/tpp request player%s to request a teleport to%s player%s.", MAGENTA, RESET, MAGENTA, RESET));
-    player.sendMessage(String.format("Use %s/tpp accept other_player%s to accept the request.", GREEN, RESET));
-    player.sendMessage(String.format("Use %s/tpp deny other_player%s to deny the request.", RED, RESET));
-    player.sendMessage("");
-    player.sendMessage(String.format("%s%sLists:", GOLD, BOLD));
-    player.sendMessage(String.format("Use %s/tp list%s gives you a list of all your teleports.", BLUE, RESET));
-    player.sendMessage(String.format("Use %s/tpp list%s gives you a list pending teleport requests.", BLUE, RESET));
+    // Base commands
+    player.sendMessage(Component.text("Teleportation", GOLD, BOLD));
+    // /tp set
+    player.sendMessage(Component.text("Use ")
+      .append(TeleportCommandTexts.teleportSet())
+      .append(Component.text(" to create a teleport named "))
+      .append(Component.text("example", GREEN))
+      .append(Component.text(" based on your location."))
+      .appendNewline()
+      // /tp to
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportTo())
+      .append(Component.text(" to teleport to "))
+      .append(Component.text("example", LIGHT_PURPLE))
+      .append(Component.text("."))
+      .appendNewline()
+      // /tp remove
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportRemove())
+      .append(Component.text(" to remove "))
+      .append(Component.text("example", RED))
+      .append(Component.text("."))
+      .appendNewline()
+      // /tp list
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportList())
+      .append(Component.text(" to show all saved teleports ."))
+      .appendNewline()
+      .appendNewline()
+    );
+    // Quick commands
+    player.sendMessage(Component.text("Quick teleports", GOLD, BOLD));
+    // /tp set
+    player.sendMessage(Component.text("Use ")
+      .append(TeleportCommandTexts.back())
+      .append(Component.text(" to teleport back to the previous location."))
+      .appendNewline()
+      .append(Component.text("- Also works after you died and want to go back to your stuff.", GRAY, ITALIC))
+      .appendNewline()
+      // /home set
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.homeSet())
+      .append(Component.text(" to set a teleport that brings you home."))
+      .appendNewline()
+      // /home
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.home())
+      .append(Component.text(" to instantly go home."))
+      .appendNewline()
+      // /bed
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.bed())
+      .append(Component.text(" to instantly go to your bed."))
+      .appendNewline()
+      .append(Component.text("- Only works if you have slept in a bed.", GRAY, ITALIC))
+      .appendNewline()
+      // /anchor
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.anchor())
+      .append(Component.text(" to instantly go to your Respawn Anchor."))
+      .appendNewline()
+      .append(Component.text("- Only works if the anchor is charged.", GRAY, ITALIC))
+      .appendNewline()
+      .appendNewline()
+    );
+    // Player teleports
+    player.sendMessage(Component.text("Player teleports", GOLD, BOLD));
+    // /tp set
+    player.sendMessage(Component.text("Use ")
+      .append(TeleportCommandTexts.teleportPlayerRequest())
+      .append(Component.text(" to request teleports to other players."))
+      .appendNewline()
+      // /tpp accept
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportPlayerAccept())
+      .append(Component.text(" to accept the request."))
+      .appendNewline()
+      // /tpp deny
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportPlayerDeny())
+      .append(Component.text(" to deny the request."))
+      .appendNewline()
+      // /tpp list
+      .append(Component.text("Use "))
+      .append(TeleportCommandTexts.teleportPlayerList())
+      .append(Component.text(" to show all requests from send to you."))
+    );
   }
 
   @EventHandler
@@ -165,5 +232,69 @@ public record TeleportCommand(
       return suggestions;
     }
     return suggestions;
+  }
+
+  public static class TeleportCommandTexts {
+
+    public static Component homeSet() {
+      return Component.text("/home set", GREEN);
+    }
+
+    public static Component home() {
+      return Component.text("/home", BLUE);
+    }
+
+    public static Component bed() {
+      return Component.text("/bed", DARK_RED);
+    }
+
+    public static Component anchor() {
+      return Component.text("/anchor", DARK_PURPLE);
+    }
+
+    public static Component teleportList() {
+      return Component.text("/tp list", BLUE);
+    }
+
+    public static Component teleportSet() {
+      return Component.text("/tp set [example]", GREEN);
+    }
+
+    public static Component teleportTo() {
+      return Component.text("/tp to [example]", LIGHT_PURPLE);
+    }
+
+    public static Component teleportRemove() {
+      return Component.text("/tp remove [example]", RED);
+    }
+
+    public static Component back() {
+      return Component.text("/back", GOLD);
+    }
+
+    public static Component teleportPlayerList() {
+      return Component.text("/tpp list", BLUE);
+    }
+
+    public static Component teleportPlayerRequest() {
+      return Component.text("/tpp request [player]", LIGHT_PURPLE);
+    }
+
+    public static Component teleportPlayerAccept() {
+      return teleportPlayerAccept("[player]");
+    }
+
+    public static Component teleportPlayerAccept(String name) {
+      return Component.text("/tpp accept " + name, GREEN);
+    }
+
+    public static Component teleportPlayerDeny() {
+      return teleportPlayerDeny("[player]");
+    }
+
+    public static Component teleportPlayerDeny(String name) {
+      return Component.text("/tpp accept " + name, RED);
+    }
+
   }
 }

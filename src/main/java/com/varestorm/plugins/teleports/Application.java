@@ -41,7 +41,6 @@ public final class Application extends JavaPlugin {
       this.registerCommand("back", quickTeleportCommand);
       this.registerCommand("anchor", quickTeleportCommand);
       this.registerCommand("home", quickTeleportCommand);
-      this.registerCommand("setHome", quickTeleportCommand);
 
       TeleportCommand teleportCommand = new TeleportCommand(this);
       this.registerCommand("tp", teleportCommand, teleportCommand);
