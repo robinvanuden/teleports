@@ -92,7 +92,7 @@ public record AnchorPoint(Telepoint telepoint) {
     }
     Block block = world.getBlockAt(location).getRelative(BlockFace.UP);
     Location particleLoc = block.getLocation().clone();
-    world.spawnParticle(Particle.ENCHANTMENT_TABLE, particleLoc.add(0.5, 1, 0.5), count);
+    world.spawnParticle(Particle.ENCHANT, particleLoc.add(0.5, 1, 0.5), count);
   }
 
 }

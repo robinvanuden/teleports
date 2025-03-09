@@ -256,7 +256,7 @@ public class TeleportManager {
     int min = 0;
     double rand = (double) (random.nextInt(10 - min + 1) + min) / 10;
     location.setY((location.getY() - 1) + rand);
-    this.player.spawnParticle(Particle.REDSTONE, location, 2, new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1));
+    this.player.spawnParticle(Particle.DUST, location, 2, new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1));
   }
 
   private void setProgress(double percentage) {

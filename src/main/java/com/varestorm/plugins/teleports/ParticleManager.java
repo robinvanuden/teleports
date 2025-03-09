@@ -33,7 +33,7 @@ public record ParticleManager(Application application) {
                boolean b = (y == minY || y == maxY);
                boolean c = (z == minZ || z == maxZ);
                if (a ? b || c : b && c) {
-                  world.spawnParticle(Particle.REDSTONE, x, y, z, 1, new Particle.DustOptions(color, 1));
+                  world.spawnParticle(Particle.DUST, x, y, z, 1, new Particle.DustOptions(color, 1));
                }
             }
          }
@@ -69,12 +69,12 @@ public record ParticleManager(Application application) {
          return;
       }
       Location location2 = location.clone().add(0, 0.5, 0);
-      world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
-      world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
-      world.spawnParticle(Particle.REDSTONE, location, count, randomOption(primary));
-      world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
-      world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
-      world.spawnParticle(Particle.REDSTONE, location2, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location2, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location2, count, randomOption(primary));
+      world.spawnParticle(Particle.DUST, location2, count, randomOption(primary));
    }
 
    private static Particle.DustOptions randomOption(Color primary) {
@@ -93,7 +93,7 @@ public record ParticleManager(Application application) {
       World world = location.getWorld();
       location.setX(location.getX() - 0.5);
       location.setZ(location.getZ() - 0.5);
-      this.application.runAsync(() -> world.spawnParticle(Particle.ENCHANTMENT_TABLE, location, count));
+      this.application.runAsync(() -> world.spawnParticle(Particle.DUST, location, count));
    }
 
 }
