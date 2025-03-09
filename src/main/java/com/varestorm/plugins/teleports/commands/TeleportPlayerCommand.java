@@ -101,7 +101,7 @@ public record TeleportPlayerCommand(
   }
 
   @Override
-  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
     if (!(sender instanceof Player player)) {
       return false;
     }
@@ -135,7 +135,7 @@ public record TeleportPlayerCommand(
   }
 
   @Override
-  public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
+  public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String @NotNull [] args) {
     List<String> suggestions = new ArrayList<>();
     List<String> commands = new ArrayList<>();
     if (!(sender instanceof Player player)) {

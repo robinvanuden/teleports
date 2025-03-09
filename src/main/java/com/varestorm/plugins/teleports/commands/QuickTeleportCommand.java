@@ -18,7 +18,7 @@ public record QuickTeleportCommand(
   Application application) implements CommandExecutor, TabCompleter {
 
   @Override
-  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
     if (!(sender instanceof Player player)) {
       sender.sendMessage("Only players can teleport!");
       return true;
@@ -76,7 +76,7 @@ public record QuickTeleportCommand(
   }
 
   @Override
-  public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+  public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
     List<String> suggestions = new ArrayList<>();
     if (command.getName().equals("spawn")) {
       for (Application.WorldType type : Application.WorldType.values()) {

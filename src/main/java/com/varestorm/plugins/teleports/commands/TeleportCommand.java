@@ -30,7 +30,7 @@ public record TeleportCommand(
   }
 
   @Override
-  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
     if (!(sender instanceof Player player)) {
       sender.sendMessage("Only players can teleport!");
       return true;
@@ -188,7 +188,7 @@ public record TeleportCommand(
   }
 
   @Override
-  public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+  public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String @NotNull [] args) {
     List<String> suggestions = new ArrayList<>();
     List<String> commands = new ArrayList<>();
     if (!(sender instanceof Player player)) {
