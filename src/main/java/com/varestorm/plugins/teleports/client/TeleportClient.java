@@ -1,30 +1,25 @@
 package com.varestorm.plugins.teleports.client;
 
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.ParticleManager;
 import com.varestorm.plugins.teleports.commands.TeleportCommand;
 import com.varestorm.plugins.teleports.teleporting.AnchorPoint;
 import com.varestorm.plugins.teleports.teleporting.BedPoint;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.*;
 import java.util.logging.Logger;
 
-import static net.kyori.adventure.text.format.NamedTextColor.*;
-import static net.kyori.adventure.text.format.TextDecoration.BOLD;
-
 public class TeleportClient {
 
   private static Logger LOGGER;
-  final static TextDecoration ITALIC = TextDecoration.ITALIC;
 
   private final Player player;
   private Telepoint home, back;
@@ -35,28 +30,34 @@ public class TeleportClient {
   private final TeleportFile file;
   private final ParticleManager particles;
   private final TeleportManager manager;
+  private final TeleportMessageManager messageManager;
 
-  public TeleportClient(Player player, Application application) {
+  public TeleportClient(Player player, Plugin application) {
     LOGGER = application.getLogger();
-    LOGGER.info(player.getName() + ".teleports loaded");
     this.player = player;
     this.list = new HashMap<>();
     this.requests = new ArrayList<>();
-    this.file = new TeleportFile(application);
-    this.particles = new ParticleManager(application);
-    this.manager = new TeleportManager(player, application, this.particles);
-    List<Telepoint> telepoints = this.file.loadTeleports(player);
-    if (telepoints != null) {
-      for (Telepoint telepoint : telepoints) {
-        switch (telepoint.getType()) {
-          case BACK -> this.back = telepoint;
-          case HOME -> this.home = telepoint;
-          case BED -> this.bed = new BedPoint(telepoint);
-          case ANCHOR -> {
-            this.anchor = new AnchorPoint(telepoint);
-            this.anchor.resetCharges();
-          }
-          case CUSTOM -> this.list.put(telepoint.getName(), telepoint);
+    this.file = new TeleportFile(application.getDataFolder());
+    this.particles = new ParticleManager();
+    this.manager = new TeleportManager(player);
+    this.messageManager = new TeleportMessageManager(player);
+    this.loadTelepoints();
+  }
+
+  private void loadTelepoints() {
+    List<Telepoint> telepoints = this.file.loadTeleports(this.player);
+    if (telepoints == null) {
+      return;
+    }
+    for (Telepoint telepoint : telepoints) {
+      switch (telepoint.getType()) {
+        case BACK -> this.back = telepoint;
+        case HOME -> this.home = telepoint;
+        case BED -> this.bed = new BedPoint(telepoint);
+        case CUSTOM -> this.list.put(telepoint.getName(), telepoint);
+        case ANCHOR -> {
+          this.anchor = new AnchorPoint(telepoint);
+          this.anchor.resetCharges();
         }
       }
     }
@@ -72,7 +73,7 @@ public class TeleportClient {
 
   public void getList() {
     this.sendMessage(
-      Component.text("Teleports", DARK_PURPLE, BOLD)
+      Component.text("Teleports", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD)
         .appendNewline()
         .append(Component.text("------------------------------"))
     );
@@ -86,10 +87,10 @@ public class TeleportClient {
       hasAnchor = !this.anchor.isBroken();
     }
     this.sendMessage(Component.text("Home: ")
-      .append(Component.text(hasHome ? "set" : "not set", hasHome ? GREEN : RED))
+      .append(Component.text(hasHome ? "set" : "not set", hasHome ? NamedTextColor.GREEN : NamedTextColor.RED))
       .append(Component.text("!")));
     this.sendMessage(Component.text("Bed: ")
-      .append(Component.text(hasBed ? "set" : "not set", hasBed ? GREEN : RED))
+      .append(Component.text(hasBed ? "set" : "not set", hasBed ? NamedTextColor.GREEN : NamedTextColor.RED))
       .append(Component.text("!")));
 
     int charges = 0;
@@ -101,8 +102,8 @@ public class TeleportClient {
     boolean bar3 = charges > 2;
     boolean bar4 = charges > 3;
 
-    Component filled = Component.text("■", YELLOW);
-    Component empty = Component.text("-", DARK_GRAY);
+    Component filled = Component.text("■", NamedTextColor.YELLOW);
+    Component empty = Component.text("-", NamedTextColor.DARK_GRAY);
 
     this.sendMessage(
       Component.text("Anchor: [")
@@ -115,19 +116,19 @@ public class TeleportClient {
 
     if (this.list.isEmpty()) {
       this.sendMessage(Component.text("Your list is empty. Use ")
-        .append(Component.text("/tp set [name]", DARK_PURPLE))
+        .append(Component.text("/tp set [name]", NamedTextColor.DARK_PURPLE))
         .append(Component.text(" to create a teleport.")));
       return;
     }
     int count = 1;
-    Component list = Component.text("Teleport list", DARK_PURPLE)
+    Component list = Component.text("Teleport list", NamedTextColor.DARK_PURPLE)
       .appendNewline()
       .append(Component.text("------------------------------"));
     for (Map.Entry<String, Telepoint> entry : this.list.entrySet()) {
       Telepoint telepoint = entry.getValue();
       System.out.println(telepoint);
       list = list.appendNewline()
-        .append(Component.text("%s. ".formatted(count), WHITE))
+        .append(Component.text("%s. ".formatted(count), NamedTextColor.WHITE))
         .append(telepoint.getTitle());
       count++;
     }
@@ -137,11 +138,11 @@ public class TeleportClient {
   public void set(String raw) {
     String name = raw.toLowerCase();
     if (name.isEmpty()) {
-      this.sendActionBar(Component.text("Please enter a valid name!", RED));
+      this.messageManager.sendError("Please enter a valid name!");
       return;
     }
     if (!name.matches("^[a-z]*$")) {
-      this.sendActionBar(Component.text("You can only use letters in the name!", RED));
+      this.messageManager.sendError("You can only use letters in the name!");
       return;
     }
     Location location = this.player.getLocation();
@@ -149,50 +150,54 @@ public class TeleportClient {
     if (this.list.containsKey(name)) {
       this.list.put(telepoint.getName(), telepoint);
       ParticleManager.highlightBlock(location, Color.ORANGE);
-      this.sendActionBar(Component.text("Teleport %s updated!".formatted(name), BLUE));
+      this.sendActionBar(Component.text("Teleport %s updated!".formatted(name), NamedTextColor.BLUE));
       return;
     }
     if ((this.list.size() + 1) <= 5) {
       this.list.put(telepoint.getName(), telepoint);
       ParticleManager.highlightBlock(location, Color.GREEN);
-      this.sendActionBar(Component.text("Teleport %s set!".formatted(name), GREEN));
+      this.sendActionBar(Component.text("Teleport %s set!".formatted(name), NamedTextColor.GREEN));
       return;
     }
-    this.sendMessage(Component.text("You've reached the maximum of 5 teleports!", RED));
-    this.sendMessage(Component.text("You can overwrite existing teleports with ", WHITE, ITALIC)
-      .append(Component.text("/tp set <name>", DARK_PURPLE)));
-    this.sendMessage(Component.text("or delete teleports with ", WHITE, ITALIC)
-      .append(Component.text("/tp remove <name>", RED)));
+    this.sendMessage(Component.text("You've reached the maximum of 5 teleports!", NamedTextColor.RED));
+    this.sendMessage(Component.text("You can overwrite existing teleports with ", NamedTextColor.WHITE, TextDecoration.ITALIC)
+      .append(Component.text("/tp set <name>", NamedTextColor.DARK_PURPLE)));
+    this.sendMessage(Component.text("or delete teleports with ", NamedTextColor.WHITE, TextDecoration.ITALIC)
+      .append(Component.text("/tp remove <name>", NamedTextColor.RED)));
   }
 
   public void to(String name, boolean forced) {
     Telepoint telepoint = this.list.get(name);
     if (telepoint == null) {
-      this.sendActionBar(Component.text("Teleport not found!", RED));
+      this.messageManager.sendError("Teleport not found!");
       return;
     }
     if (!telepoint.getType().equals(Telepoint.Type.CUSTOM)) {
-      this.sendActionBar(Component.text("Teleport not found!", RED));
+      this.messageManager.sendError("Teleport not found!");
       return;
     }
     if (!forced && telepoint.getSafeLocation() == null) {
-      this.sendActionBar(Component.text("Teleport is not found!", RED));
+      this.messageManager.sendError("Teleport is not found!");
       return;
     }
-    this.manager.start(telepoint, false);
+    this.manager.start(telepoint, false, () -> {
+      this.teleportWithTitle(telepoint);
+    });
   }
 
-  public void test(String name) {
-    Telepoint telepoint = this.list.get(name);
-    if (telepoint == null) {
-      this.sendActionBar(Component.text("Teleport is not found!", RED));
-      return;
+  public boolean toSpawn(World world) {
+    Telepoint spawn = Telepoint.create("Spawn", Telepoint.Type.CUSTOM, world.getSpawnLocation(), world);
+    if (spawn.isInterdimensional(this.getPlayer())) {
+      this.manager.start(spawn, true, () -> {
+        this.teleportWithTitle(spawn);
+      });
+      return true;
     }
-    telepoint.getSafeLocation();
+    return this.teleportWithTitle(spawn);
   }
 
   public boolean remove(String name) {
-    this.sendActionBar(Component.text("Teleport %s deleted!".formatted(name), RED));
+    this.messageManager.sendError("Teleport %s deleted!".formatted(name));
     return this.list.remove(name) != null;
   }
 
@@ -220,37 +225,29 @@ public class TeleportClient {
 
   public void toBack() {
     if (this.back == null) {
-      this.sendActionBar(Component.text("You haven't teleported yet.", RED));
+      this.messageManager.sendError("You haven't teleported yet.");
       return;
     }
-    this.manager.teleport(this.back.getLocation());
+    this.teleport(this.back);
   }
 
   public void setHome() {
     Location location = this.player.getLocation();
     this.home = Telepoint.create("your home", Telepoint.Type.HOME, location);
-    this.sendActionBar(Component.text("Home set!", GREEN)
-      .append(Component.text(" Use ", WHITE))
+    this.sendActionBar(Component.text("Home set!", NamedTextColor.GREEN)
+      .append(Component.text(" Use ", NamedTextColor.WHITE))
       .append(TeleportCommand.TeleportCommandTexts.home())
-      .append(Component.text(" to teleport to ", WHITE))
+      .append(Component.text(" to teleport to ", NamedTextColor.WHITE))
       .append(this.home.getTitle())
     );
   }
 
-  public void testHome() {
-    if (this.home == null) {
-      return;
-    }
-    this.home.getSafeLocation();
-  }
-
   public void toHome() {
     if (this.home == null) {
-      this.sendMessage(Component.text("You don't have a home yet. Use /home set.", RED));
+      this.messageManager.sendError("You don't have a home yet. Use /home set.");
       return;
     }
-    this.manager.teleport(this.home);
-    this.manager.sendArrivalTitle(this.home);
+    this.teleportWithTitle(this.home);
   }
 
   public boolean setBed(Location location) {
@@ -273,19 +270,16 @@ public class TeleportClient {
 
   public void toBed() {
     if (this.bed == null) {
-      this.sendMessage(Component.text("You don't have abed yet. Right-click on a bed to set your bed-spawn point.", RED));
+      this.messageManager.sendError("You don't have abed yet. Right-click on a bed to set your bed-spawn point.");
       return;
     }
     if (this.bed.isBroken()) {
-      this.sendMessage(Component.text("Your bed is broken. Right-click on a new bed to set your bed-spawn point.", RED));
+      this.messageManager.sendError("Your bed is broken. Right-click on a new bed to set your bed-spawn point.");
       return;
     }
-    Telepoint bed = this.bed.telepoint();
-    if (this.manager.teleport(bed)) {
-      this.manager.sendArrivalTitle(bed);
-      return;
+    if (!this.teleportWithTitle(this.bed.telepoint())) {
+      this.messageManager.sendError("Can't find your bed.");
     }
-    this.sendActionBar(Component.text("Can't find your bed.", RED));
   }
 
   public void brokeBed(Block block, Player breaker) {
@@ -323,27 +317,26 @@ public class TeleportClient {
 
   public void toAnchor() {
     if (this.anchor == null) {
-      this.sendActionBar(Component.text("You don't have a respawn anchor yet!", RED));
+      this.messageManager.sendError("You don't have a respawn anchor yet!");
       return;
     }
     if (this.anchor.isBroken()) {
-      this.sendActionBar(Component.text("Your respawn anchor is broken.", RED));
+      this.messageManager.sendError("Your respawn anchor is broken.");
       return;
     }
     if (this.anchor.hasNoCharges()) {
-      this.sendActionBar(Component.text("Your respawn anchor is out of charge!", RED));
+      this.messageManager.sendError("Your respawn anchor is out of charge!");
       return;
     }
-    if (!this.manager.teleport(this.anchor.getTelepoint())) {
-      this.sendActionBar(Component.text("Can't teleport you to your respawn anchor.", RED));
+    if (!this.teleportWithTitle(this.anchor.getTelepoint())) {
+      this.messageManager.sendError("Can't teleport you to your respawn anchor.");
       return;
     }
-    this.manager.sendArrivalTitle(this.anchor.getTelepoint());
     this.anchor.removeCharge();
     int charges = this.anchor.getCharges();
     int max = this.anchor.getMaximumCharges();
     if (charges < 2) {
-      this.sendMessage(Component.text("Warning! Your respawn anchor is almost out of charges... [%s/%s]".formatted(charges, max), GOLD));
+      this.sendMessage(Component.text("Warning! Your respawn anchor is almost out of charges... [%s/%s]".formatted(charges, max), NamedTextColor.GOLD));
     }
   }
 
@@ -356,11 +349,11 @@ public class TeleportClient {
       return;
     }
     if (!this.player.getUniqueId().equals(breaker.getUniqueId())) {
-      this.sendMessage(Component.text("Your respawn anchor was broken by %s.".formatted(breaker.getName()), RED));
+      this.messageManager.sendError("Your respawn anchor was broken by %s.".formatted(breaker.getName()));
     }
     this.sendMessage(
       TeleportCommand.TeleportCommandTexts.anchor()
-        .append(Component.text(" is not possible until you place and charge a new one.", DARK_PURPLE))
+        .append(Component.text(" is not possible until you place and charge a new one.", NamedTextColor.DARK_PURPLE))
     );
   }
 
@@ -390,5 +383,36 @@ public class TeleportClient {
 
   private void sendActionBar(Component component) {
     this.player.sendActionBar(component);
+  }
+
+  public boolean teleportWithTitle(Telepoint telepoint) {
+    this.messageManager.arrivalTitle(telepoint);
+    return this.teleport(telepoint);
+  }
+
+  public boolean teleport(Telepoint telepoint) {
+    Location location = telepoint.getSafeLocation();
+    if (location == null) {
+      this.messageManager.sendError("Teleport was not safe...");
+      return false;
+    }
+    return this.teleport(location);
+  }
+
+  public boolean teleport(Location location) {
+    Location oldLocation = this.player.getLocation().clone();
+    this.player.teleportAsync(location).thenAcceptAsync(success -> {
+      if (success) {
+        // New location
+        this.player.playSound(this.player, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
+        Particle.PORTAL.builder().location(location).receivers(32, true);
+        this.player.removePotionEffect(PotionEffectType.BLINDNESS);
+        // Old location
+        this.player.playSound(oldLocation, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
+        Particle.PORTAL.builder().location(oldLocation).receivers(16, true);
+        this.setBack(oldLocation);
+      }
+    });
+    return true;
   }
 }

@@ -1,8 +1,8 @@
 package com.varestorm.plugins.teleports.commands;
 
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
-import com.varestorm.plugins.teleports.teleporting.Telepoint;
+import com.varestorm.plugins.teleports.client.TeleportClientManager;
+import com.varestorm.plugins.teleports.world.WorldManager;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -14,8 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-public record QuickTeleportCommand(
-  Application application) implements CommandExecutor, TabCompleter {
+public record QuickTeleportCommand(TeleportClientManager clientManager) implements CommandExecutor, TabCompleter {
 
   @Override
   public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
@@ -23,17 +22,13 @@ public record QuickTeleportCommand(
       sender.sendMessage("Only players can teleport!");
       return true;
     }
-    TeleportClient client = this.application.getClient(player.getUniqueId());
+    TeleportClient client = this.clientManager.get(player);
     switch (command.getName()) {
       case "back" -> {
         client.toBack();
         return true;
       }
       case "home" -> {
-        if (args.length > 0 && args[0].equals("test")) {
-          client.testHome();
-          return true;
-        }
         if (args.length > 0 && args[0].equals("set")) {
           client.setHome();
           return true;
@@ -51,13 +46,13 @@ public record QuickTeleportCommand(
       }
       case "spawn" -> {
         if (args.length == 0) {
-          return this.doTeleportSpawn(player.getWorld(), client);
+          return client.toSpawn(player.getWorld());
         }
-        World world = this.application.getWorld(Application.WorldType.valueOf(args[0].toUpperCase()));
+        World world = WorldManager.getWorld(player.getServer(), WorldManager.WorldType.valueOf(args[0].toUpperCase()));
         if (world == null) {
           world = player.getWorld();
         }
-        return this.doTeleportSpawn(world, client);
+        return client.toSpawn(world);
       }
       default -> {
         return false;
@@ -65,21 +60,11 @@ public record QuickTeleportCommand(
     }
   }
 
-  private boolean doTeleportSpawn(World world, TeleportClient client) {
-    Telepoint spawn = Telepoint.create("Spawn", Telepoint.Type.CUSTOM, world.getSpawnLocation(), world);
-    if (spawn.isInterdimensional(client.getPlayer())) {
-      client.getManager().start(spawn, true);
-      return true;
-    }
-    client.getManager().sendArrivalTitle(spawn);
-    return client.getManager().teleport(spawn);
-  }
-
   @Override
   public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
     List<String> suggestions = new ArrayList<>();
     if (command.getName().equals("spawn")) {
-      for (Application.WorldType type : Application.WorldType.values()) {
+      for (WorldManager.WorldType type : WorldManager.WorldType.values()) {
         suggestions.add(type.name().toLowerCase());
       }
     }

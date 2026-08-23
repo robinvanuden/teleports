@@ -1,7 +1,7 @@
 package com.varestorm.plugins.teleports.commands;
 
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
+import com.varestorm.plugins.teleports.client.TeleportClientManager;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -13,21 +13,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.BOLD;
 import static net.kyori.adventure.text.format.TextDecoration.ITALIC;
 
-public record TeleportCommand(
-  Application application) implements CommandExecutor, TabCompleter, Listener {
-
-  public static Map<UUID, Integer> areTeleporting;
-
-  public TeleportCommand(Application application) {
-    this.application = application;
-    TeleportCommand.areTeleporting = new HashMap<>();
-  }
+public record TeleportCommand(TeleportClientManager clientManager) implements CommandExecutor, TabCompleter, Listener {
 
   @Override
   public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
@@ -39,7 +32,7 @@ public record TeleportCommand(
       player.sendMessage(Component.text("Unknown command. Try /tp help", RED));
       return true;
     }
-    TeleportClient client = this.application.getClient(player.getUniqueId());
+    TeleportClient client = this.clientManager.get(player.getUniqueId());
     if (client == null) {
       System.out.println("TeleportClient is null");
       sender.sendMessage(Component.text("Something went wrong!", RED));
@@ -64,13 +57,6 @@ public record TeleportCommand(
       }
       case "force" -> {
         client.to(args[1], true);
-        return true;
-      }
-      case "test" -> {
-        if (!player.isOp()) {
-          return true;
-        }
-        client.test(args[1]);
         return true;
       }
       case "remove" -> {
@@ -181,7 +167,7 @@ public record TeleportCommand(
 
   @EventHandler
   public void onPlayerMoved(PlayerMoveEvent event) {
-    TeleportClient client = this.application.getClient(event.getPlayer().getUniqueId());
+    TeleportClient client = this.clientManager.get(event.getPlayer());
     if (client != null) {
       client.getManager().cancel();
     }
@@ -217,7 +203,7 @@ public record TeleportCommand(
     if (args.length == 2) {
       switch (args[0]) {
         case "test", "to", "remove" -> {
-          List<String> names = this.application.getClient(player.getUniqueId()).names();
+          List<String> names = this.clientManager.get(player).names();
           if (args[1].isEmpty()) {
             suggestions.addAll(names);
           } else {

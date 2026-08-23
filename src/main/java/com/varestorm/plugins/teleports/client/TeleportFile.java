@@ -3,7 +3,6 @@ package com.varestorm.plugins.teleports.client;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import org.bukkit.entity.Player;
 
@@ -17,22 +16,15 @@ import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public record TeleportFile(Application application) {
+public record TeleportFile(File dataFolder) {
 
-  static Logger LOGGER;
-
-  public TeleportFile(Application application) {
-    this.application = application;
-    LOGGER = application.getLogger();
-  }
+  static Logger LOGGER = Logger.getLogger("TeleportFile");
 
   private String loadFile(Player player) {
-    File file = this.application.getDataFolder().getParentFile();
-    File folder = new File(file.getAbsolutePath() + "/teleports");
-    if (!folder.isDirectory() && !folder.mkdirs()) {
+    if (!this.dataFolder.isDirectory() && !this.dataFolder.mkdirs()) {
       System.out.println("Error while create directory /teleport");
     }
-    File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
+    File json_file = new File(this.dataFolder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
     if (!json_file.exists()) {
       return null;
     }
@@ -42,6 +34,7 @@ public record TeleportFile(Application application) {
       while (scanner.hasNextLine()) {
         contents.append(scanner.nextLine());
       }
+      LOGGER.info(player.getName() + ".teleports loaded");
       return contents.toString();
     } catch (FileNotFoundException e) {
       LOGGER.log(Level.SEVERE, e.getMessage());
@@ -63,7 +56,7 @@ public record TeleportFile(Application application) {
       JsonArray array = element.getAsJsonArray();
       for (int i = 0; i < array.size(); i++) {
         String obj = array.get(i).getAsString();
-        Telepoint telepoint = Telepoint.fromString(obj, this.application);
+        Telepoint telepoint = Telepoint.fromString(obj, player.getServer());
         if (telepoint != null) {
           points.add(telepoint);
         }
@@ -75,17 +68,15 @@ public record TeleportFile(Application application) {
   }
 
   public boolean saveTeleports(Player player, List<Telepoint> telepoints) {
-    File file = this.application.getDataFolder().getParentFile();
-    File folder = new File(file.getAbsolutePath() + "/teleports");
-    if (!folder.isDirectory() && !folder.mkdirs()) {
+    if (!this.dataFolder.isDirectory() && !this.dataFolder.mkdirs()) {
       System.out.println("Could load teleport directory");
       return false;
     }
-    File json_file = new File(folder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
+    File json_file = new File(this.dataFolder.getAbsolutePath() + "/" + player.getUniqueId() + ".json");
     if (!json_file.exists()) {
       try {
         if (!json_file.createNewFile()) {
-          LOGGER.warning(String.format("Could save player file of %s at %s%n", player.getName(), json_file.getAbsolutePath()));
+          LOGGER.warning(String.format("Could save the player file of %s at %s%n", player.getName(), json_file.getAbsolutePath()));
           return false;
         }
       } catch (IOException e) {

@@ -1,7 +1,7 @@
 package com.varestorm.plugins.teleports.commands;
 
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
+import com.varestorm.plugins.teleports.client.TeleportClientManager;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record TeleportPlayerCommand(
-  Application application) implements CommandExecutor, TabCompleter {
+  TeleportClientManager clientManager) implements CommandExecutor, TabCompleter {
 
   private final static NamedTextColor BLUE = NamedTextColor.BLUE;
   private final static NamedTextColor GREY = NamedTextColor.GRAY;
@@ -31,14 +31,14 @@ public record TeleportPlayerCommand(
   private final static TextDecoration BOLD = TextDecoration.BOLD;
 
   private void list(Player player) {
-    TeleportClient client = this.application.getClient(player);
+    TeleportClient client = this.clientManager.get(player);
     if (!client.hasRequests()) {
       player.sendMessage(RED + "No requests received");
       return;
     }
     player.sendMessage(String.format("%s%sTeleport requests", PURPLE, BOLD));
     player.sendMessage("------------------");
-    Server server = this.application.getServer();
+    Server server = player.getServer();
     int count = 1;
     for (UUID uuid : client.getRequests()) {
       OfflinePlayer p = server.getOfflinePlayer(uuid);
@@ -52,12 +52,12 @@ public record TeleportPlayerCommand(
   }
 
   public void request(Player sender, String playerName) {
-    Player receiver = this.application.getServer().getPlayer(playerName);
+    Player receiver = sender.getServer().getPlayer(playerName);
     if (receiver == null) {
       sender.sendActionBar(Component.text("Player not found.", RED, ITALIC));
       return;
     }
-    TeleportClient client = this.application.getClient(receiver);
+    TeleportClient client = this.clientManager.get(receiver);
     if (client.hasRequest(sender.getUniqueId())) {
       Component component = Component.text("You already sent a request to ", GREY, ITALIC).append(Telepoint.getTitle(receiver.getLocation(), receiver.getName()));
       sender.sendActionBar(component);
@@ -78,21 +78,20 @@ public record TeleportPlayerCommand(
   }
 
   public void process(Player player, String requesterName, boolean accept) {
-    Player requester = this.application.getServer().getPlayer(requesterName);
+    Player requester = player.getServer().getPlayer(requesterName);
     if (requester == null) {
       player.sendActionBar(Component.text("Player is not online...", RED, ITALIC));
       return;
     }
-    TeleportClient client = this.application.getClient(player);
+    TeleportClient client = this.clientManager.get(player);
     if (!client.hasRequest(requester.getUniqueId())) {
       player.sendActionBar(Component.text("%s did not send a request...".formatted(requesterName), RED, ITALIC));
       return;
     }
-    TeleportClient requesterClient = this.application.getClient(requester);
+    TeleportClient requesterClient = this.clientManager.get(requester);
     if (accept) {
       Telepoint telepoint = Telepoint.create(player.getName(), Telepoint.Type.CUSTOM, player.getLocation(), player.getWorld());
-      requesterClient.getManager().teleport(telepoint);
-      requesterClient.getManager().sendArrivalTitle(telepoint);
+      requesterClient.teleportWithTitle(telepoint);
       requester.sendActionBar(Component.text("%s has accepted your request!".formatted(player.getName()), GREEN));
     } else {
       requester.sendActionBar(Component.text("%s has denied your request!".formatted(player.getName()), RED));
@@ -162,7 +161,7 @@ public record TeleportPlayerCommand(
       List<String> players = new ArrayList<>();
       switch (args[0]) {
         case "request" -> {
-          for (Player p : this.application.getServer().getOnlinePlayers()) {
+          for (Player p : sender.getServer().getOnlinePlayers()) {
             if (p.getUniqueId() != player.getUniqueId()) {
               players.add(p.getName());
             }
@@ -178,9 +177,9 @@ public record TeleportPlayerCommand(
           }
         }
         case "accept", "deny" -> {
-          TeleportClient client = this.application.getClient(player);
+          TeleportClient client = this.clientManager.get(player);
           for (UUID uuid : client.getRequests()) {
-            OfflinePlayer p = this.application.getServer().getOfflinePlayer(uuid);
+            OfflinePlayer p = sender.getServer().getOfflinePlayer(uuid);
             players.add(p.getName());
           }
           if (args[1].isEmpty()) {
