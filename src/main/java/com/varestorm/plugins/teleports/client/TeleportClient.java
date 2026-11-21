@@ -12,7 +12,6 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.potion.PotionEffectType;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -22,6 +21,7 @@ public class TeleportClient {
   private static Logger LOGGER;
 
   private final Player player;
+  private final Plugin plugin;
   private Telepoint home, back;
   private BedPoint bed;
   private AnchorPoint anchor;
@@ -32,14 +32,15 @@ public class TeleportClient {
   private final TeleportManager manager;
   private final TeleportMessageManager messageManager;
 
-  public TeleportClient(Player player, Plugin application) {
-    LOGGER = application.getLogger();
+  public TeleportClient(Player player, Plugin plugin) {
+    LOGGER = plugin.getLogger();
     this.player = player;
+    this.plugin = plugin;
     this.list = new HashMap<>();
     this.requests = new ArrayList<>();
-    this.file = new TeleportFile(application.getDataFolder());
+    this.file = new TeleportFile(plugin.getDataFolder());
     this.particles = new ParticleManager();
-    this.manager = new TeleportManager(player);
+    this.manager = new TeleportManager(player, plugin);
     this.messageManager = new TeleportMessageManager(player);
     this.loadTelepoints();
   }
@@ -159,7 +160,7 @@ public class TeleportClient {
       this.sendActionBar(Component.text("Teleport %s set!".formatted(name), NamedTextColor.GREEN));
       return;
     }
-    this.sendMessage(Component.text("You've reached the maximum of 5 teleports!", NamedTextColor.RED));
+    this.messageManager.sendError("You've reached the maximum of 5 teleports!");
     this.sendMessage(Component.text("You can overwrite existing teleports with ", NamedTextColor.WHITE, TextDecoration.ITALIC)
       .append(Component.text("/tp set <name>", NamedTextColor.DARK_PURPLE)));
     this.sendMessage(Component.text("or delete teleports with ", NamedTextColor.WHITE, TextDecoration.ITALIC)
@@ -390,6 +391,21 @@ public class TeleportClient {
     return this.teleport(telepoint);
   }
 
+  public void spawnPortalEffect(Player player) {
+    this.spawnPortalEffect(player.getLocation());
+  }
+
+  public void spawnPortalEffect(Location location) {
+    this.player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 1f, 1f);
+    // 1. Spawn de paarse Enderman deeltjes rondom de speler
+    Particle.REVERSE_PORTAL.builder()
+      .location(location.clone().add(0, 1.0, 0)) // Start rond het middel van de speler
+      .count(80)                    // Aantal deeltjes voor een vol effect
+      .offset(0.5, 0.8, 0.5)        // Verspreid de deeltjes in de hoogte en breedte
+      .extra(0.1)                   // Geeft een lichte snelheid mee voor het wegvliegen
+      .spawn();
+  }
+
   public boolean teleport(Telepoint telepoint) {
     Location location = telepoint.getSafeLocation();
     if (location == null) {
@@ -404,12 +420,13 @@ public class TeleportClient {
     this.player.teleportAsync(location).thenAcceptAsync(success -> {
       if (success) {
         // New location
-        this.player.playSound(this.player, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
-        Particle.PORTAL.builder().location(location).receivers(32, true);
-        this.player.removePotionEffect(PotionEffectType.BLINDNESS);
+        this.player.getServer().getScheduler().runTask(this.plugin, () -> {
+          this.spawnPortalEffect(this.player);
+        });
         // Old location
-        this.player.playSound(oldLocation, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
-        Particle.PORTAL.builder().location(oldLocation).receivers(16, true);
+        this.player.getServer().getScheduler().runTask(this.plugin, () -> {
+          this.spawnPortalEffect(oldLocation);
+        });
         this.setBack(oldLocation);
       }
     });

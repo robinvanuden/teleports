@@ -34,6 +34,20 @@ public class TeleportMessageManager {
     );
   }
 
+  public void titleFLip(Component title, Component subtitle) {
+    this.player.showTitle(
+      Title.title(
+        title,
+        subtitle,
+        Title.Times.times(
+          Duration.ofMillis(0),
+          Duration.ofSeconds(100),
+          Duration.ofSeconds(0)
+        )
+      )
+    );
+  }
+
   // ============================ WORLDS ============================ //
 
   public void arrivalTitle(World world, Component subtitle) {
@@ -61,7 +75,7 @@ public class TeleportMessageManager {
   }
 
   public void teleportCountdown(World world, int secondsLeft) {
-    this.title(
+    this.titleFLip(
       this.getTeleportTitle(world),
       Component.text(String.format("Jumping in %d %s!", secondsLeft, "second" + (secondsLeft == 1 ? "" : "s")))
     );

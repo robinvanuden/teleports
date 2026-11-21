@@ -13,7 +13,7 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -32,19 +32,25 @@ public class TeleportManager {
 
   private final BossBar bossBar;
   private final Player player;
+  private final Plugin plugin;
   private final List<ScheduledFuture<?>> tasks = new ArrayList<>();
   private final TeleportMessageManager messageManager;
   private boolean teleporting;
   boolean onCooldown;
 
-  public TeleportManager(Player player) {
+  public TeleportManager(Player player, Plugin plugin) {
     this.player = player;
+    this.plugin = plugin;
     this.teleporting = false;
     this.onCooldown = false;
     this.bossBar = player.getServer().createBossBar("Recharging teleport", BarColor.PURPLE, BarStyle.SEGMENTED_10);
     this.bossBar.addPlayer(player);
     this.bossBar.setVisible(false);
     this.messageManager = new TeleportMessageManager(player);
+  }
+
+  public boolean isOnCooldown() {
+    return this.onCooldown;
   }
 
   public void start(Telepoint telepoint, boolean longer, Runnable callback) {
@@ -60,7 +66,6 @@ public class TeleportManager {
         .append(Component.text("takes time! Please wait...")));
       return;
     }
-    this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100000, 1000, false));
     this.teleporting = true;
     if (telepoint == null) {
       this.messageManager.sendError("Error!! Something went wrong...");
@@ -76,13 +81,14 @@ public class TeleportManager {
       milliseconds = milliseconds + 1000;
     }
     this.tasks.add(scheduler.schedule(() -> this.sendTitleEnding(telepoint), milliseconds, TimeUnit.MILLISECONDS));
-    this.tasks.add(scheduler.schedule(callback, milliseconds, TimeUnit.MILLISECONDS));
+    this.tasks.add(scheduler.schedule(callback, milliseconds + 10, TimeUnit.MILLISECONDS));
   }
 
   public void sendTitleStart(Telepoint telepoint) {
     scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 1), 0, TimeUnit.MILLISECONDS);
     scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 4), 50, TimeUnit.MILLISECONDS);
     this.messageManager.teleportStart(telepoint.getWorld());
+    this.player.getServer().getScheduler().runTask(this.plugin, () -> this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, -1, 1000, false)));
   }
 
   public void sendTitleCountdown(Telepoint telepoint, int countdown) {
@@ -94,7 +100,9 @@ public class TeleportManager {
     scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 3), 200, TimeUnit.MILLISECONDS);
     scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 400, TimeUnit.MILLISECONDS);
     scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 600, TimeUnit.MILLISECONDS);
-    scheduler.schedule(() -> this.messageManager.arrivalTitle(telepoint), 300, TimeUnit.MILLISECONDS);
+    this.messageManager.arrivalTitle(telepoint);
+    this.teleporting = false;
+    this.player.getServer().getScheduler().runTask(this.plugin, () -> this.player.removePotionEffect(PotionEffectType.BLINDNESS));
     if (telepoint.isInterdimensional(this.player)) {
       this.setCooldown();
     }
@@ -124,7 +132,7 @@ public class TeleportManager {
     if (this.stop()) {
       return;
     }
-    this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
+    this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
     this.player.clearTitle();
     this.player.showTitle(Title.title(
       Component.text("ABORTED!", NamedTextColor.RED, TextDecoration.BOLD),
@@ -197,12 +205,9 @@ public class TeleportManager {
     this.player.sendActionBar(message);
   }
 
-  private void doTeleport(Location location) {
-    this.player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN);
-  }
-
   public void disable() {
     this.cancel();
     this.bossBar.removeAll();
+    scheduler.shutdown();
   }
 }
