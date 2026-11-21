@@ -1,11 +1,10 @@
 package com.varestorm.plugins.teleports.teleporting;
 
-import com.varestorm.plugins.teleports.Application;
-import com.varestorm.plugins.teleports.ParticleManager;
+import com.varestorm.plugins.teleports.world.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -16,8 +15,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Objects;
 
-import static net.kyori.adventure.text.format.NamedTextColor.*;
-import static net.kyori.adventure.text.format.TextDecoration.BOLD;
+import static net.kyori.adventure.text.format.NamedTextColor.WHITE;
 
 public record Telepoint(String name,
                         com.varestorm.plugins.teleports.teleporting.Telepoint.Type type,
@@ -48,16 +46,16 @@ public record Telepoint(String name,
   }
 
   public Component getTitle() {
-    return Component.text(this.name, getWorldColor(this.getEnvironment()));
+    return Component.text(this.name, WorldManager.getWorldColor(this.getEnvironment()));
   }
 
   private static Component getTitle(World.Environment environment, String name) {
-    return Component.text(name, getWorldColor(environment));
+    return Component.text(name, WorldManager.getWorldColor(environment));
   }
 
   public static Component getTitle(Location location, String name) {
     World world = location.getWorld();
-    NamedTextColor color = world == null ? WHITE : getWorldColor(world.getEnvironment());
+    NamedTextColor color = world == null ? WHITE : WorldManager.getWorldColor(world.getEnvironment());
     return Component.text(name, color);
   }
 
@@ -69,27 +67,8 @@ public record Telepoint(String name,
     return getTitle(world.getEnvironment(), name);
   }
 
-  private static NamedTextColor getWorldColor(World.Environment environment) {
-    return switch (environment) {
-      case NETHER -> GOLD;
-      case THE_END -> DARK_PURPLE;
-      case NORMAL -> BLUE;
-      default -> GREEN;
-    };
-  }
-
   public NamedTextColor getWorldColor() {
-    return getWorldColor(this.getWorld().getEnvironment());
-  }
-
-  public static Component getWorldName(World world) {
-    String name = switch (world.getEnvironment()) {
-      case NORMAL -> "Varestørm";
-      case NETHER -> "The Nether Regions";
-      case THE_END -> "The End";
-      default -> "The Unknown";
-    };
-    return Component.text(name.toUpperCase(), getWorldColor(world.getEnvironment()), BOLD);
+    return WorldManager.getWorldColor(this.getEnvironment());
   }
 
   public Type getType() {
@@ -115,7 +94,6 @@ public record Telepoint(String name,
 
   public Location getSafeLocation() {
     Location location = this.getLocation();
-    ParticleManager.highlightBlock(location, Color.BLUE);
     // Check self block
     Location safe = checkSafeLocation(location.getBlock());
     if (safe != null) {
@@ -183,14 +161,14 @@ public record Telepoint(String name,
     return !below.isEmpty();
   }
 
-  public static Telepoint fromString(String s, Application application) {
+  public static Telepoint fromString(String s, Server server) {
     if (s.contains(",")) {
       String[] split = s.split(",");
       Type type = getType(split[1]);
       if (type == null) {
         return null;
       }
-      World world = application.getWorld(split[2]);
+      World world = server.getWorld(split[2]);
       if (world == null) {
         return null;
       }

@@ -7,8 +7,13 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-public record ParticleManager(Application application) {
+public record ParticleManager() {
+
+  private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
    public static void highlightBlock(Location location, Color color) {
       if (location == null) {
@@ -59,8 +64,8 @@ public record ParticleManager(Application application) {
       }
       Location center = location.clone().add(0.5, 0, 0.5);
       Location top = center.clone().add(0, 1, 0);
-      this.application.runLater(() -> doSmoke(center, primary, count), 20);
-      if (!low) this.application.runLater(() -> doSmoke(top, primary, count), 20);
+     scheduler.schedule(() -> doSmoke(center, primary, count), 1, TimeUnit.SECONDS);
+     if (!low) scheduler.schedule(() -> doSmoke(top, primary, count), 1, TimeUnit.SECONDS);
    }
 
    public static void doSmoke(Location location, Color primary, int count) {
@@ -93,7 +98,7 @@ public record ParticleManager(Application application) {
       World world = location.getWorld();
       location.setX(location.getX() - 0.5);
       location.setZ(location.getZ() - 0.5);
-      this.application.runAsync(() -> world.spawnParticle(Particle.DUST, location, count));
+     scheduler.submit(() -> world.spawnParticle(Particle.DUST, location, count));
    }
 
 }

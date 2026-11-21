@@ -1,7 +1,7 @@
 package com.varestorm.plugins.teleports.listener;
 
-import com.varestorm.plugins.teleports.Application;
 import com.varestorm.plugins.teleports.client.TeleportClient;
+import com.varestorm.plugins.teleports.client.TeleportClientManager;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.type.Bed;
@@ -14,41 +14,34 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.plugin.Plugin;
 
-import java.util.logging.Logger;
 
-
-public record PlayerListener(Application application) implements Listener {
-
-   static Logger LOGGER;
-
-   public PlayerListener {
-      LOGGER = application.getLogger();
-   }
+public record PlayerListener(Plugin plugin, TeleportClientManager clientManager) implements Listener {
 
    @EventHandler
    public void onPlayerJoin(PlayerJoinEvent event) {
       Player player = event.getPlayer();
-      this.application.setClient(player);
+      this.clientManager.create(this.plugin, player);
    }
 
    @EventHandler
    public void onPlayerQuit(PlayerQuitEvent event) {
       Player player = event.getPlayer();
-      this.application.getClient(player.getUniqueId()).saveTelepoints();
+      this.clientManager.get(player.getUniqueId()).saveTelepoints();
    }
 
    @EventHandler
    public void onDeathPlayer(PlayerDeathEvent event) {
       Player player = event.getEntity();
-      TeleportClient client = this.application.getClient(player);
+      TeleportClient client = this.clientManager.get(player);
       client.setBack(player.getLocation());
    }
 
    @EventHandler
    public void onPlayerTeleport(PlayerTeleportEvent event) {
       Player player = event.getPlayer();
-      TeleportClient client = this.application.getClient(player);
+      TeleportClient client = this.clientManager.get(player);
       client.setBack(player.getLocation());
    }
 
@@ -64,7 +57,7 @@ public record PlayerListener(Application application) implements Listener {
       if (!valid) {
          return;
       }
-      TeleportClient client = this.application.getClient(player);
+      TeleportClient client = this.clientManager.get(player);
       client.getManager().resetCooldown();
    }
 
@@ -82,14 +75,14 @@ public record PlayerListener(Application application) implements Listener {
          return;
       }
       Player player = event.getPlayer();
-      TeleportClient client = this.application.getClient(player);
+      TeleportClient client = this.clientManager.get(player);
       client.setAnchor(block.getLocation());
    }
 
    @EventHandler
    public void onBedSet(PlayerBedEnterEvent event) {
       Player player = event.getPlayer();
-      TeleportClient client = this.application.getClient(player);
+      TeleportClient client = this.clientManager.get(player);
       if (client.setBed(event.getBed().getLocation())) {
          event.setCancelled(true);
       }
@@ -118,13 +111,13 @@ public record PlayerListener(Application application) implements Listener {
    }
 
    private void alertBedBroken(Block block, Player player) {
-      for (TeleportClient client : this.application.getClients()) {
+      for (TeleportClient client : this.clientManager.all()) {
          client.brokeBed(block, player);
       }
    }
 
    private void alertAnchorBroken(Block block, Player player) {
-      for (TeleportClient client : this.application.getClients()) {
+      for (TeleportClient client : this.clientManager.all()) {
          client.brokeAnchor(block, player);
       }
    }

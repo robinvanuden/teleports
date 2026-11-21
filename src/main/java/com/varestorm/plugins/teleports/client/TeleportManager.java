@@ -1,194 +1,118 @@
 package com.varestorm.plugins.teleports.client;
 
-import com.varestorm.plugins.teleports.Application;
-import com.varestorm.plugins.teleports.ParticleManager;
 import com.varestorm.plugins.teleports.teleporting.Telepoint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
-import org.bukkit.*;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitScheduler;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.logging.Logger;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class TeleportManager {
 
-  private static Logger LOGGER;
-  final static NamedTextColor GOLD = NamedTextColor.GOLD;
-  final static NamedTextColor RED = NamedTextColor.RED;
-  final static TextDecoration BOLD = TextDecoration.BOLD;
+  private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   private final BossBar bossBar;
   private final Player player;
-  private final Application application;
-  private final List<BukkitTask> tasks;
-  private final ParticleManager particles;
-  private boolean teleporting, onCooldown;
+  private final Plugin plugin;
+  private final List<ScheduledFuture<?>> tasks = new ArrayList<>();
+  private final TeleportMessageManager messageManager;
+  private boolean teleporting;
+  boolean onCooldown;
 
-  public TeleportManager(Player player, Application application, ParticleManager particles) {
-    LOGGER = application.getLogger();
+  public TeleportManager(Player player, Plugin plugin) {
     this.player = player;
-    this.application = application;
-    this.tasks = new ArrayList<>();
-    this.particles = particles;
+    this.plugin = plugin;
     this.teleporting = false;
     this.onCooldown = false;
-    this.bossBar = application.getServer().createBossBar("Recharging teleport particles", BarColor.YELLOW, BarStyle.SOLID);
+    this.bossBar = player.getServer().createBossBar("Recharging teleport", BarColor.PURPLE, BarStyle.SEGMENTED_10);
     this.bossBar.addPlayer(player);
     this.bossBar.setVisible(false);
+    this.messageManager = new TeleportMessageManager(player);
   }
 
-  public boolean teleport(Telepoint telepoint) {
-    Location location = telepoint.getSafeLocation();
-    if (location == null) {
-      this.sendMessage("Teleport was not safe...");
-      return false;
-    }
-    return this.teleport(location);
+  public boolean isOnCooldown() {
+    return this.onCooldown;
   }
 
-  public boolean teleport(Location location) {
+  public void start(Telepoint telepoint, boolean longer, Runnable callback) {
     if (this.teleporting) {
-      this.sendMessage("You are still teleporting, please wait...");
-      return false;
-    }
-    if (this.onCooldown) {
-      this.sendMessage(Component.text("Recharging")
-        .appendSpace()
-        .append(Component.text("particles", GOLD))
-        .appendSpace()
-        .append(Component.text("takes time! Please wait...")));
-      return false;
-    }
-    if (location == null) {
-      return false;
-    }
-    if (Telepoint.isInterdimensional(this.player, location.getWorld().getEnvironment())) {
-      this.setCooldown();
-    }
-    this.doLoadChunk(location);
-    this.application.runLater(() -> this.doTeleport(location), 1);
-    this.application.runLaterAsync(() -> this.particles.smoke(location.getBlock().getLocation().clone()), 1);
-    this.application.runLater(() -> this.player.playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1), 2);
-    this.application.runLater(() -> this.player.removePotionEffect(PotionEffectType.BLINDNESS), 2);
-    return true;
-  }
-
-  public void start(Telepoint telepoint, boolean longer) {
-    if (this.teleporting) {
-      this.sendMessage(Component.text("You are still teleporting, please wait...", RED));
+      this.messageManager.sendError("You are still teleporting, please wait...");
       return;
     }
     if (this.onCooldown) {
       this.sendMessage(Component.text("Recharging")
         .appendSpace()
-        .append(Component.text("particles", GOLD))
+        .append(Component.text("particles", NamedTextColor.GOLD))
         .appendSpace()
         .append(Component.text("takes time! Please wait...")));
       return;
     }
-    this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100000, 1000, false));
     this.teleporting = true;
     if (telepoint == null) {
-      this.sendMessage(Component.text("Error!! Something went wrong...", RED));
+      this.messageManager.sendError("Error!! Something went wrong...");
       return;
     }
-    int ticks = 1;
-    Location location = telepoint.getLocation();
-    Component title = Component.text("Teleporting!", telepoint.getWorldColor(), BOLD);
-    this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleStart(title), 1));
+    // Start teleport
+    this.tasks.add(scheduler.schedule(() -> this.sendTitleStart(telepoint), 0, TimeUnit.MILLISECONDS));
+    int milliseconds = 1000;
+    // Loop seconds
     for (int i = longer ? 10 : 5; i > 0; i--) {
-      ticks = ticks + 10;
-      this.tasks.add(this.application.runLaterAsync(() -> this.doLoadChunk(location), ticks));
-      ticks = ticks + 5;
-      this.application.runLaterAsync(() -> this.particles.smoke(telepoint.getSafeLocation(), Color.WHITE), ticks);
-      ticks = ticks + 5;
       int countdown = i;
-      this.tasks.add(this.application.runLaterAsync(() -> this.sendTitleCountdown(title, countdown), ticks));
+      this.tasks.add(scheduler.schedule(() -> this.sendTitleCountdown(telepoint, countdown), milliseconds, TimeUnit.MILLISECONDS));
+      milliseconds = milliseconds + 1000;
     }
-    ticks = ticks + 20;
-    this.tasks.add(this.application.runLater(() -> this.sendTitleEnding(telepoint), ticks));
+    this.tasks.add(scheduler.schedule(() -> this.sendTitleEnding(telepoint), milliseconds, TimeUnit.MILLISECONDS));
+    this.tasks.add(scheduler.schedule(callback, milliseconds + 10, TimeUnit.MILLISECONDS));
   }
 
-  public void doLoadChunk(Location location) {
-    Chunk chunk = location.getChunk();
-    if (!chunk.isLoaded()) {
-      LOGGER.info("Chuck load");
-      chunk.load();
-    }
+  public void sendTitleStart(Telepoint telepoint) {
+    scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 1), 0, TimeUnit.MILLISECONDS);
+    scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 4), 50, TimeUnit.MILLISECONDS);
+    this.messageManager.teleportStart(telepoint.getWorld());
+    this.player.getServer().getScheduler().runTask(this.plugin, () -> this.player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, -1, 1000, false)));
   }
 
-  void showTitle(Component title, String subtitle) {
-    this.showTitle(title, Component.text(subtitle), true);
-  }
-
-  void showTitle(Component title, Component subtitle) {
-    this.showTitle(title, subtitle, true);
-  }
-
-  void showTitle(Component title, Component subtitle, boolean zero) {
-    this.player.clearTitle();
-    this.player.showTitle(Title.title(title, subtitle, Title.Times.times(zero ? Duration.ZERO : Duration.ofMillis(500), Duration.ofSeconds(4), Duration.ofSeconds(1))));
-  }
-
-  public void sendTitleStart(Component title) {
-    if (this.teleporting) {
-      this.showTitle(title, Component.text("Preparing to jump. ").append(Component.text("Don't move!", RED)));
-      this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 1);
-      this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 4), 3);
-    }
-  }
-
-  public void sendTitleCountdown(Component title, int countdown) {
-    if (this.teleporting) {
-      this.showTitle(title, String.format("Jumping in %d %s!", countdown, "second" + (countdown == 1 ? "" : "s")));
-      this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, countdown < 3 ? 1 : 3);
-    }
+  public void sendTitleCountdown(Telepoint telepoint, int countdown) {
+    this.messageManager.teleportCountdown(telepoint.getWorld(), countdown);
+    this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, countdown < 3 ? 1 : 3);
   }
 
   public void sendTitleEnding(Telepoint telepoint) {
-    if (!this.teleporting) {
-      return;
-    }
-    boolean interdimensional = telepoint.isInterdimensional(this.player);
-    if (this.stop()) {
-      this.cancel();
-      return;
-    }
-    if (!this.teleport(telepoint)) {
-      return;
-    }
-    this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 3), 1);
-    this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 3);
-    this.application.runLater(() -> this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 5);
-    this.application.runLater(() -> this.sendArrivalTitle(telepoint), 3);
-    if (interdimensional) {
+    scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 3), 200, TimeUnit.MILLISECONDS);
+    scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 2), 400, TimeUnit.MILLISECONDS);
+    scheduler.schedule(() -> this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, 7), 600, TimeUnit.MILLISECONDS);
+    this.messageManager.arrivalTitle(telepoint);
+    this.teleporting = false;
+    this.player.getServer().getScheduler().runTask(this.plugin, () -> this.player.removePotionEffect(PotionEffectType.BLINDNESS));
+    if (telepoint.isInterdimensional(this.player)) {
       this.setCooldown();
     }
   }
 
-  public void sendArrivalTitle(Telepoint telepoint) {
-    Component subtitle = Component.text("You've arrived at ").append(telepoint.getTitle());
-    this.showTitle(Telepoint.getWorldName(telepoint.getWorld()), subtitle, false);
-  }
-
   private void clearTasks() {
-    for (BukkitTask task : this.tasks) {
-      task.cancel();
+    for (ScheduledFuture<?> task : this.tasks) {
+      task.cancel(false);
     }
+    this.tasks.clear();
   }
 
   public boolean stop() {
@@ -196,58 +120,58 @@ public class TeleportManager {
       return true;
     }
     this.player.removePotionEffect(PotionEffectType.BLINDNESS);
-    this.clearTasks();
     this.teleporting = false;
+    this.clearTasks();
     return false;
   }
 
   public void cancel() {
+    if (!this.teleporting) {
+      return;
+    }
     if (this.stop()) {
       return;
     }
-    this.player.playSound(this.player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
+    this.player.playSound(this.player, Sound.BLOCK_NOTE_BLOCK_BIT, 10, -10);
     this.player.clearTitle();
     this.player.showTitle(Title.title(
-      Component.text("ABORTED!", RED, BOLD),
-      Component.text("You moved!"),
+      Component.text("ABORTED!", NamedTextColor.RED, TextDecoration.BOLD),
+      Component.text("You moved!", NamedTextColor.GRAY),
       Title.Times.times(
         Duration.ZERO,
         Duration.ofSeconds(4),
         Duration.ofSeconds(1)
       )
     ));
-
   }
 
   public void setCooldown() {
     this.onCooldown = true;
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.5), 5)); // 5
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.10), 10)); // 10
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.15), 20)); // 15
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.20), 30)); // 20
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.25), 40)); // 25
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.30), 50)); // 30
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.35), 60)); // 35
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.40), 70)); // 40
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.45), 80)); // 45
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.50), 90)); // 50
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.55), 100)); // 55
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.60), 110)); // 60
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.65), 120)); // 65
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.70), 130)); // 70
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.75), 140)); // 75
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.80), 150)); // 80
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.85), 160)); // 85
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.90), 170)); // 90
-    this.tasks.add(this.application.runLater(() -> this.setProgress(0.95), 180)); // 95
-    this.tasks.add(this.application.runLater(() -> this.setProgress(1), 190)); // 100
-
-    BukkitScheduler scheduler = this.application.getServer().getScheduler();
-    int cooldownId = scheduler.scheduleSyncRepeatingTask(this.application, this::particle, 1, 1);
-    this.application.runLaterAsync(() -> {
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.5f), 500, TimeUnit.MILLISECONDS)); // 5
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.10f), 1000, TimeUnit.MILLISECONDS)); // 10
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.15f), 1500, TimeUnit.MILLISECONDS)); // 15
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.20f), 2000, TimeUnit.MILLISECONDS)); // 20
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.25f), 2500, TimeUnit.MILLISECONDS)); // 25
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.30f), 3000, TimeUnit.MILLISECONDS)); // 30
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.35f), 3500, TimeUnit.MILLISECONDS)); // 35
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.40f), 4000, TimeUnit.MILLISECONDS)); // 40
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.45f), 4500, TimeUnit.MILLISECONDS)); // 45
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.50f), 5000, TimeUnit.MILLISECONDS)); // 50
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.55f), 5500, TimeUnit.MILLISECONDS)); // 55
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.60f), 6000, TimeUnit.MILLISECONDS)); // 60
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.65f), 6500, TimeUnit.MILLISECONDS)); // 65
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.70f), 7000, TimeUnit.MILLISECONDS)); // 70
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.75f), 7500, TimeUnit.MILLISECONDS)); // 75
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.80f), 8000, TimeUnit.MILLISECONDS)); // 80
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.85f), 8500, TimeUnit.MILLISECONDS)); // 85
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.90f), 9000, TimeUnit.MILLISECONDS)); // 90
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(0.95f), 9500, TimeUnit.MILLISECONDS)); // 95
+    this.tasks.add(scheduler.schedule(() -> this.setProgress(1f), 10000, TimeUnit.MILLISECONDS)); // 100
+    ScheduledFuture<?> repeated = scheduler.scheduleAtFixedRate(this::particle, 1, 10, TimeUnit.MILLISECONDS);
+    scheduler.schedule(() -> {
       this.resetCooldown();
-      scheduler.cancelTask(cooldownId);
-    }, 195); // 10
+      repeated.cancel(true);
+    }, 10000, TimeUnit.MILLISECONDS);
   }
 
   private void particle() {
@@ -259,7 +183,7 @@ public class TeleportManager {
     this.player.spawnParticle(Particle.DUST, location, 2, new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1));
   }
 
-  private void setProgress(double percentage) {
+  private void setProgress(float percentage) {
     if (percentage == 1) {
       this.bossBar.setVisible(false);
       return;
@@ -274,23 +198,16 @@ public class TeleportManager {
     }
     this.clearTasks();
     this.onCooldown = false;
-    this.sendMessage(Component.text("You can teleport to other dimensions again!", GOLD));
-  }
-
-  private void sendMessage(String message) {
-    this.player.sendActionBar(Component.text(message));
+    this.sendMessage(Component.text("You can teleport to other dimensions again!", NamedTextColor.GOLD));
   }
 
   private void sendMessage(Component message) {
     this.player.sendActionBar(message);
   }
 
-  private void doTeleport(Location location) {
-    this.player.teleport(location, PlayerTeleportEvent.TeleportCause.PLUGIN);
-  }
-
   public void disable() {
     this.cancel();
     this.bossBar.removeAll();
+    scheduler.shutdown();
   }
 }
